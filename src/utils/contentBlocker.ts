@@ -85,10 +85,10 @@ const blockRedirects = () => {
   };
 
   // Enhanced iframe protection
-  const protectIframe = (iframe: HTMLIFrameElement) => {
+  export function protectIframe(iframe: HTMLIFrameElement) {
     try {
       // Set sandbox attributes to allow minimum required functionality
-      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups');
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
       
       // Set security headers through CSP
       iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
