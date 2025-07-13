@@ -19,7 +19,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'bein-sports-1-fr',
     name: 'beIN Sports 1 FR',
     description: 'French sports channel featuring Wimbledon Final',
-    embedUrl: 'https://livecric.pk/s2w/337',
+    embedUrl: 'https://daddylive2.top/my/stream-116.php',
     category: 'Tennis',
     isLive: true,
     event: 'Wimbledon Final'
@@ -28,7 +28,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'bein-sports-2-fr',
     name: 'beIN Sports 2 FR',
     description: 'French sports channel with live football',
-    embedUrl: 'https://stream2watch.pk/live/bein-sports-2-fr',
+    embedUrl: 'https://daddylive2.top/my/stream-117.php',
     category: 'Football',
     isLive: true,
     event: 'Live Football'
@@ -37,7 +37,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'sky-sports-main',
     name: 'Sky Sports Main Event',
     description: 'Premier UK sports channel',
-    embedUrl: 'https://stream2watch.pk/live/sky-sports-main-event',
+    embedUrl: 'https://daddylive2.top/my/stream-1.php',
     category: 'Mixed Sports',
     isLive: true,
     event: 'Live Sports'
@@ -46,7 +46,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'espn-usa',
     name: 'ESPN USA',
     description: 'American sports network',
-    embedUrl: 'https://stream2watch.pk/live/espn-usa',
+    embedUrl: 'https://daddylive2.top/my/stream-8.php',
     category: 'Mixed Sports',
     isLive: true,
     event: 'Live Sports'
@@ -55,7 +55,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'bt-sport-1',
     name: 'BT Sport 1',
     description: 'British sports channel',
-    embedUrl: 'https://stream2watch.pk/live/bt-sport-1',
+    embedUrl: 'https://daddylive2.top/my/stream-2.php',
     category: 'Football',
     isLive: true,
     event: 'Premier League'
@@ -64,7 +64,7 @@ const sportsChannels: SportsChannel[] = [
     id: 'eurosport-1',
     name: 'Eurosport 1',
     description: 'European sports channel',
-    embedUrl: 'https://stream2watch.pk/live/eurosport-1',
+    embedUrl: 'https://daddylive2.top/my/stream-15.php',
     category: 'Mixed Sports',
     isLive: true,
     event: 'Live Sports'
@@ -121,13 +121,17 @@ const SportsStreaming = () => {
       `;
       iframeContainer.appendChild(loadingDiv);
 
-      // Create and configure iframe
+      // Create and configure iframe with better streaming compatibility
       const iframe = document.createElement('iframe');
       iframe.className = 'absolute inset-0 w-full h-full rounded-lg shadow-lg bg-black';
       iframe.setAttribute('allowfullscreen', 'true');
-      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
+      iframe.setAttribute('webkitallowfullscreen', 'true');
+      iframe.setAttribute('mozallowfullscreen', 'true');
+      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write');
       iframe.setAttribute('loading', 'eager');
       iframe.setAttribute('importance', 'high');
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('scrolling', 'no');
       iframe.style.opacity = '0';
       iframe.style.transition = 'opacity 0.3s ease';
       iframe.src = channel.embedUrl;

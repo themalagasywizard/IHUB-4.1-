@@ -62,6 +62,17 @@ const blockMaliciousRedirects = () => {
     'googleadservices.com'
   ]);
 
+  // Add trusted streaming domains that should not be blocked
+  const trustedStreamingDomains = new Set([
+    'daddylive2.top',
+    'stream2watch.pk',
+    'livecric.pk',
+    'vidsrc.to',
+    'vidsrc.me',
+    'api.themoviedb.org',
+    'image.tmdb.org'
+  ]);
+
   const isMaliciousDomain = (url: string): boolean => {
     try {
       const urlObj = new URL(url, window.location.origin);
@@ -109,23 +120,25 @@ const blockMaliciousRedirects = () => {
   }
 };
 
-// Export the protectIframe function
+// Export the protectIframe function - Simplified for streaming compatibility
 export const protectIframe = (iframe: HTMLIFrameElement) => {
   try {
-    // Set sandbox attributes to allow minimum required functionality
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    // More permissive sandbox for streaming sites
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox');
     
-    // Set security headers through CSP
-    iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
+    // Remove restrictive CSP that was causing issues
+    // iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
     
-    // Prevent iframe from capturing keyboard input when not focused
-    iframe.setAttribute('tabindex', '-1');
+    // Add loading="eager" for streaming
+    iframe.setAttribute('loading', 'eager');
     
-    // Add loading="lazy" for better performance
-    iframe.setAttribute('loading', 'lazy');
+    // Less restrictive referrer policy for streaming
+    iframe.setAttribute('referrerpolicy', 'origin-when-cross-origin');
     
-    // Add referrerpolicy to prevent information leakage
-    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    // Allow fullscreen for video players
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('webkitallowfullscreen', 'true');
+    iframe.setAttribute('mozallowfullscreen', 'true');
   } catch (e) {
     console.warn('Error protecting iframe:', e);
   }
