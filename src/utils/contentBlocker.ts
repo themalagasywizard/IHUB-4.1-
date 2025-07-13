@@ -47,6 +47,7 @@ const blockAds = () => {
 
 // Enhanced redirect blocking
 const blockRedirects = () => {
+  // Store original methods safely
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
   const originalAssign = window.location.assign;
@@ -99,43 +100,71 @@ const blockRedirects = () => {
     return element;
   };
 
-  // Override pushState
-  history.pushState = function(...args) {
-    const newUrl = args[2]?.toString();
-    if (newUrl && !isBlockedDomain(newUrl)) {
-      originalPushState.apply(this, args);
-    } else {
-      console.warn('Blocked redirect attempt:', newUrl);
-    }
-  };
+  // Override pushState (with error handling)
+  try {
+    history.pushState = function(...args) {
+      const newUrl = args[2]?.toString();
+      if (newUrl && !isBlockedDomain(newUrl)) {
+        originalPushState.apply(this, args);
+      } else {
+        console.warn('Blocked redirect attempt:', newUrl);
+      }
+    };
+  } catch (e) {
+    console.warn('Could not override history.pushState:', e);
+  }
 
-  // Override replaceState
-  history.replaceState = function(...args) {
-    const newUrl = args[2]?.toString();
-    if (newUrl && !isBlockedDomain(newUrl)) {
-      originalReplaceState.apply(this, args);
-    } else {
-      console.warn('Blocked replace attempt:', newUrl);
-    }
-  };
+  // Override replaceState (with error handling)
+  try {
+    history.replaceState = function(...args) {
+      const newUrl = args[2]?.toString();
+      if (newUrl && !isBlockedDomain(newUrl)) {
+        originalReplaceState.apply(this, args);
+      } else {
+        console.warn('Blocked replace attempt:', newUrl);
+      }
+    };
+  } catch (e) {
+    console.warn('Could not override history.replaceState:', e);
+  }
 
-  // Override location.assign
-  window.location.assign = function(url: string) {
-    if (!isBlockedDomain(url)) {
-      originalAssign.call(window.location, url);
-    } else {
-      console.warn('Blocked assign attempt:', url);
+  // Override location.assign (with error handling for read-only properties)
+  try {
+    if (typeof originalAssign === 'function') {
+      Object.defineProperty(window.location, 'assign', {
+        value: function(url: string) {
+          if (!isBlockedDomain(url)) {
+            originalAssign.call(window.location, url);
+          } else {
+            console.warn('Blocked assign attempt:', url);
+          }
+        },
+        writable: false,
+        configurable: true
+      });
     }
-  };
+  } catch (e) {
+    console.warn('Could not override location.assign:', e);
+  }
 
-  // Override location.replace
-  window.location.replace = function(url: string) {
-    if (!isBlockedDomain(url)) {
-      originalReplace.call(window.location, url);
-    } else {
-      console.warn('Blocked replace attempt:', url);
+  // Override location.replace (with error handling for read-only properties)
+  try {
+    if (typeof originalReplace === 'function') {
+      Object.defineProperty(window.location, 'replace', {
+        value: function(url: string) {
+          if (!isBlockedDomain(url)) {
+            originalReplace.call(window.location, url);
+          } else {
+            console.warn('Blocked replace attempt:', url);
+          }
+        },
+        writable: false,
+        configurable: true
+      });
     }
-  };
+  } catch (e) {
+    console.warn('Could not override location.replace:', e);
+  }
 
   // Block all clicks site-wide
   document.addEventListener('click', (event) => {
@@ -241,9 +270,14 @@ export const protectIframe = (iframe: HTMLIFrameElement) => {
   }
 };
 
-// Initialize all blockers
+// Initialize all blockers with error handling
 export const initializeBlockers = () => {
-  blockAds();
-  blockRedirects();
-  console.log('Enhanced content blockers initialized');
+  try {
+    blockAds();
+    blockRedirects();
+    console.log('Enhanced content blockers initialized');
+  } catch (error) {
+    console.warn('Error initializing content blockers:', error);
+    // Continue execution even if blockers fail to initialize
+  }
 };

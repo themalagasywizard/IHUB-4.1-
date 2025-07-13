@@ -80,8 +80,13 @@ const SportsStreaming = () => {
   const categories = ['All', 'Tennis', 'Football', 'Mixed Sports'];
 
   useEffect(() => {
-    // Initialize content blockers when component mounts
-    initializeBlockers();
+    // Initialize content blockers when component mounts (with error handling)
+    try {
+      initializeBlockers();
+    } catch (error) {
+      console.warn('Content blockers initialization failed:', error);
+      // Continue without blockers if they fail
+    }
   }, []);
 
   const filteredChannels = selectedCategory === 'All' 
@@ -127,8 +132,13 @@ const SportsStreaming = () => {
       iframe.style.transition = 'opacity 0.3s ease';
       iframe.src = channel.embedUrl;
 
-      // Apply content blocker protection
-      protectIframe(iframe);
+      // Apply content blocker protection (with error handling)
+      try {
+        protectIframe(iframe);
+      } catch (error) {
+        console.warn('Iframe protection failed:', error);
+        // Continue without protection if it fails
+      }
 
       // Add iframe to container
       iframeContainer.appendChild(iframe);
