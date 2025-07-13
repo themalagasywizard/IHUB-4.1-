@@ -1,4 +1,4 @@
-// Content blocker utility functions
+// Content blocker utility functions - Simplified for compatibility
 const blockAds = () => {
   // Block common ad elements
   const adSelectors = [
@@ -33,218 +33,79 @@ const blockAds = () => {
 
   const removeAds = () => {
     adSelectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(element => {
-        element.remove();
-      });
+      try {
+        document.querySelectorAll(selector).forEach(element => {
+          element.remove();
+        });
+      } catch (e) {
+        // Ignore errors removing individual elements
+      }
     });
   };
 
   // Run initially and observe DOM changes
-  removeAds();
-  const observer = new MutationObserver(removeAds);
-  observer.observe(document.body, { childList: true, subtree: true });
+  try {
+    removeAds();
+    const observer = new MutationObserver(removeAds);
+    observer.observe(document.body, { childList: true, subtree: true });
+  } catch (e) {
+    console.warn('Ad blocker initialization failed:', e);
+  }
 };
 
-// Enhanced redirect blocking
-const blockRedirects = () => {
-  // Store original methods safely
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
-  const originalAssign = window.location.assign;
-  const originalReplace = window.location.replace;
+// Minimal redirect blocking - only for known malicious domains
+const blockMaliciousRedirects = () => {
+  const maliciousDomains = new Set([
+    'nexusbloom.xyz',
+    'clickid',
+    'doubleclick.net',
+    'googleadservices.com'
+  ]);
 
-  // Block all redirects except for trusted domains
-  const isBlockedDomain = (url: string): boolean => {
+  const isMaliciousDomain = (url: string): boolean => {
     try {
       const urlObj = new URL(url, window.location.origin);
-      const trustedDomains = new Set([
-        'api.themoviedb.org',
-        'vidsrc.me',
-        'image.tmdb.org',
-        'vidsrc.to',
-        'embedsito.com',
-        'vidplay.online',
-        'vidplay.site',
-        'rabbitstream.net',
-        'filemoon.sx',
-        'rapid-cloud.co',
-        'dokicloud.one',
-        'streamtape.com',
-        'stream2watch.pk',
-        'livecric.pk',
-        'stream2watch.life'
-      ]);
-      // Check if the domain or any of its parents are trusted
-      let currentDomain = urlObj.hostname;
-      while (currentDomain) {
-        if (trustedDomains.has(currentDomain)) return false;
-        const dotIndex = currentDomain.indexOf('.');
-        if (dotIndex === -1) break;
-        currentDomain = currentDomain.slice(dotIndex + 1);
-      }
-      return true;
+      return maliciousDomains.has(urlObj.hostname) || 
+             Array.from(maliciousDomains).some(domain => urlObj.hostname.includes(domain));
     } catch {
-      return true; // Block invalid URLs
+      return false;
     }
   };
 
-  // Enhanced iframe protection (using exported function)
-
-  // Override iframe creation
-  const createElementOriginal = document.createElement;
-  document.createElement = function(tagName: string, options?: ElementCreationOptions) {
-    const element = createElementOriginal.call(document, tagName, options);
-    if (tagName.toLowerCase() === 'iframe') {
-      protectIframe(element as HTMLIFrameElement);
-    }
-    return element;
-  };
-
-  // Override pushState (with error handling)
-  try {
-    history.pushState = function(...args) {
-      const newUrl = args[2]?.toString();
-      if (newUrl && !isBlockedDomain(newUrl)) {
-        originalPushState.apply(this, args);
-      } else {
-        console.warn('Blocked redirect attempt:', newUrl);
-      }
-    };
-  } catch (e) {
-    console.warn('Could not override history.pushState:', e);
-  }
-
-  // Override replaceState (with error handling)
-  try {
-    history.replaceState = function(...args) {
-      const newUrl = args[2]?.toString();
-      if (newUrl && !isBlockedDomain(newUrl)) {
-        originalReplaceState.apply(this, args);
-      } else {
-        console.warn('Blocked replace attempt:', newUrl);
-      }
-    };
-  } catch (e) {
-    console.warn('Could not override history.replaceState:', e);
-  }
-
-  // Override location.assign (with error handling for read-only properties)
-  try {
-    if (typeof originalAssign === 'function') {
-      Object.defineProperty(window.location, 'assign', {
-        value: function(url: string) {
-          if (!isBlockedDomain(url)) {
-            originalAssign.call(window.location, url);
-          } else {
-            console.warn('Blocked assign attempt:', url);
-          }
-        },
-        writable: false,
-        configurable: true
-      });
-    }
-  } catch (e) {
-    console.warn('Could not override location.assign:', e);
-  }
-
-  // Override location.replace (with error handling for read-only properties)
-  try {
-    if (typeof originalReplace === 'function') {
-      Object.defineProperty(window.location, 'replace', {
-        value: function(url: string) {
-          if (!isBlockedDomain(url)) {
-            originalReplace.call(window.location, url);
-          } else {
-            console.warn('Blocked replace attempt:', url);
-          }
-        },
-        writable: false,
-        configurable: true
-      });
-    }
-  } catch (e) {
-    console.warn('Could not override location.replace:', e);
-  }
-
-  // Block all clicks site-wide
+  // Only block clicks to known malicious domains
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
-    
-    // Check if the click is within an iframe
-    if (target.closest('iframe')) {
-      event.stopPropagation();
-      return;
-    }
-
-    // Block any link clicks to untrusted domains
     const link = target.closest('a');
-    if (link && isBlockedDomain(link.href)) {
+    if (link && link.href && isMaliciousDomain(link.href)) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('Blocked link click:', link.href);
+      console.warn('Blocked malicious link:', link.href);
     }
   }, true);
 
-  // Block all form submissions
+  // Block malicious form submissions
   document.addEventListener('submit', (event) => {
     const form = event.target as HTMLFormElement;
-    if (form && isBlockedDomain(form.action)) {
+    if (form && form.action && isMaliciousDomain(form.action)) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('Blocked form submission:', form.action);
+      console.warn('Blocked malicious form submission:', form.action);
     }
   }, true);
 
-  // Block window.open
-  const originalOpen = window.open;
-  window.open = function(...args) {
-    const url = args[0]?.toString();
-    if (url && !isBlockedDomain(url)) {
+  // Block malicious popups only
+  try {
+    const originalOpen = window.open;
+    window.open = function(...args) {
+      const url = args[0]?.toString();
+      if (url && isMaliciousDomain(url)) {
+        console.warn('Blocked malicious popup:', url);
+        return null;
+      }
       return originalOpen.apply(this, args);
-    }
-    console.warn('Blocked popup:', url);
-    return null;
-  };
-
-  // Prevent default on all iframe interactions
-  document.addEventListener('mousedown', (event) => {
-    const target = event.target as HTMLElement;
-    if (target.closest('iframe')) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-
-  // Block postMessage redirects
-  window.addEventListener('message', (event) => {
-    if (isBlockedDomain(event.origin)) {
-      event.preventDefault();
-      event.stopPropagation();
-      console.warn('Blocked postMessage from:', event.origin);
-    }
-  }, true);
-
-  // Prevent iframe navigation
-  const iframes = document.getElementsByTagName('iframe');
-  for (let i = 0; i < iframes.length; i++) {
-    try {
-      const frame = iframes[i];
-      frame.addEventListener('load', () => {
-        try {
-          const frameDoc = frame.contentDocument || frame.contentWindow?.document;
-          if (frameDoc) {
-            frameDoc.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }, true);
-          }
-        } catch (e) {
-          // Cross-origin restrictions may prevent access
-        }
-      });
-    } catch (e) {
-      // Cross-origin restrictions may prevent access
-    }
+    };
+  } catch (e) {
+    console.warn('Could not override window.open:', e);
   }
 };
 
@@ -270,12 +131,12 @@ export const protectIframe = (iframe: HTMLIFrameElement) => {
   }
 };
 
-// Initialize all blockers with error handling
+// Initialize all blockers with error handling - Simplified version
 export const initializeBlockers = () => {
   try {
     blockAds();
-    blockRedirects();
-    console.log('Enhanced content blockers initialized');
+    blockMaliciousRedirects();
+    console.log('Simplified content blockers initialized');
   } catch (error) {
     console.warn('Error initializing content blockers:', error);
     // Continue execution even if blockers fail to initialize
