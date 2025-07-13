@@ -124,14 +124,12 @@ const SportsStreaming = () => {
       // Create and configure iframe with better streaming compatibility
       const iframe = document.createElement('iframe');
       iframe.className = 'absolute inset-0 w-full h-full rounded-lg shadow-lg bg-black';
-      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write');
-      iframe.setAttribute('allowfullscreen', 'true');
-      iframe.setAttribute('webkitallowfullscreen', 'true');
-      iframe.setAttribute('mozallowfullscreen', 'true');
+      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; accelerometer; gyroscope');
       iframe.setAttribute('loading', 'eager');
       iframe.setAttribute('importance', 'high');
       iframe.setAttribute('frameborder', '0');
       iframe.setAttribute('scrolling', 'no');
+      iframe.setAttribute('referrerpolicy', 'origin-when-cross-origin');
       iframe.style.opacity = '0';
       iframe.style.transition = 'opacity 0.3s ease';
       iframe.src = channel.embedUrl;

@@ -125,25 +125,22 @@ const blockMaliciousRedirects = () => {
   }
 };
 
-// Export the protectIframe function - Simplified for streaming compatibility
+// Export the protectIframe function - Minimal restrictions for streaming compatibility
 export const protectIframe = (iframe: HTMLIFrameElement) => {
   try {
-    // More permissive sandbox for streaming sites
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox');
+    // Remove sandbox attribute entirely for streaming compatibility
+    iframe.removeAttribute('sandbox');
     
-    // Remove restrictive CSP that was causing issues
-    // iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
+    // Remove any CSP restrictions that might interfere
+    iframe.removeAttribute('csp');
     
-    // Add loading="eager" for streaming
-    iframe.setAttribute('loading', 'eager');
+    // Remove deprecated fullscreen attributes to avoid warnings (if they exist)
+    iframe.removeAttribute('allowfullscreen');
+    iframe.removeAttribute('webkitallowfullscreen');
+    iframe.removeAttribute('mozallowfullscreen');
     
-    // Less restrictive referrer policy for streaming
-    iframe.setAttribute('referrerpolicy', 'origin-when-cross-origin');
-    
-    // Allow fullscreen for video players
-    iframe.setAttribute('allowfullscreen', 'true');
-    iframe.setAttribute('webkitallowfullscreen', 'true');
-    iframe.setAttribute('mozallowfullscreen', 'true');
+    // Ensure the iframe has minimal restrictions for streaming
+    console.log('Iframe protection applied - minimal restrictions for streaming');
   } catch (e) {
     console.warn('Error protecting iframe:', e);
   }
