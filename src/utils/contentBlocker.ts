@@ -59,7 +59,12 @@ const blockMaliciousRedirects = () => {
     'nexusbloom.xyz',
     'clickid',
     'doubleclick.net',
-    'googleadservices.com'
+    'googleadservices.com',
+    'kzt2afc1rp52.com',
+    'youradexchange.com',
+    'hoodlumbragget.com',
+    'madurird.com',
+    'rtmark.net'
   ]);
 
   // Add trusted streaming domains that should not be blocked
