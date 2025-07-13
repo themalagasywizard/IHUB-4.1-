@@ -14,6 +14,7 @@ interface MediaNavigationProps {
   onFilterCategory: (id: string) => void;
   onFetchTVSeries: () => void;
   onFetchTVSeriesByCategory: (id: string) => void;
+  onShowSports: () => void;
 }
 
 const MediaNavigation = ({
@@ -22,7 +23,8 @@ const MediaNavigation = ({
   onShowAll,
   onFilterCategory,
   onFetchTVSeries,
-  onFetchTVSeriesByCategory
+  onFetchTVSeriesByCategory,
+  onShowSports
 }: MediaNavigationProps) => {
   return (
     <Menubar className="bg-transparent border-none">
@@ -69,6 +71,20 @@ const MediaNavigation = ({
               {name}
             </MenubarItem>
           ))}
+        </MenubarContent>
+      </MenubarMenu>
+
+      <MenubarMenu>
+        <MenubarTrigger className="text-white hover:text-[#ea384c] transition-all duration-300 ml-4">
+          Sports
+        </MenubarTrigger>
+        <MenubarContent className="bg-[#1a1a1a] border-[#2a2a2a]">
+          <MenubarItem
+            className="text-white hover:text-[#ea384c] hover:bg-[#2a2a2a] cursor-pointer"
+            onClick={onShowSports}
+          >
+            Live Sports
+          </MenubarItem>
         </MenubarContent>
       </MenubarMenu>
     </Menubar>

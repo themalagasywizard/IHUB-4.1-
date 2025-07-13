@@ -193,6 +193,10 @@ const Index = () => {
     setCurrentView('tvCategory');
   };
 
+  const handleShowSports = () => {
+    navigate('/sports');
+  };
+
   const loadMore = async () => {
     const nextPage = page + 1;
     if (nextPage <= totalPages) {
@@ -481,6 +485,7 @@ const Index = () => {
               onFilterCategory={handleFilterCategory}
               onFetchTVSeries={handleFetchTVSeries}
               onFetchTVSeriesByCategory={handleFetchTVSeriesByCategory}
+              onShowSports={handleShowSports}
             />
           </nav>
           

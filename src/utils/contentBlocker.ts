@@ -68,7 +68,10 @@ const blockRedirects = () => {
         'filemoon.sx',
         'rapid-cloud.co',
         'dokicloud.one',
-        'streamtape.com'
+        'streamtape.com',
+        'stream2watch.pk',
+        'livecric.pk',
+        'stream2watch.life'
       ]);
       // Check if the domain or any of its parents are trusted
       let currentDomain = urlObj.hostname;
@@ -84,27 +87,7 @@ const blockRedirects = () => {
     }
   };
 
-  // Enhanced iframe protection
-  export function protectIframe(iframe: HTMLIFrameElement) {
-    try {
-      // Set sandbox attributes to allow minimum required functionality
-      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
-      
-      // Set security headers through CSP
-      iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
-      
-      // Prevent iframe from capturing keyboard input when not focused
-      iframe.setAttribute('tabindex', '-1');
-      
-      // Add loading="lazy" for better performance
-      iframe.setAttribute('loading', 'lazy');
-      
-      // Add referrerpolicy to prevent information leakage
-      iframe.setAttribute('referrerpolicy', 'no-referrer');
-    } catch (e) {
-      console.warn('Error protecting iframe:', e);
-    }
-  };
+  // Enhanced iframe protection (using exported function)
 
   // Override iframe creation
   const createElementOriginal = document.createElement;
@@ -233,6 +216,28 @@ const blockRedirects = () => {
     } catch (e) {
       // Cross-origin restrictions may prevent access
     }
+  }
+};
+
+// Export the protectIframe function
+export const protectIframe = (iframe: HTMLIFrameElement) => {
+  try {
+    // Set sandbox attributes to allow minimum required functionality
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    
+    // Set security headers through CSP
+    iframe.setAttribute('csp', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;");
+    
+    // Prevent iframe from capturing keyboard input when not focused
+    iframe.setAttribute('tabindex', '-1');
+    
+    // Add loading="lazy" for better performance
+    iframe.setAttribute('loading', 'lazy');
+    
+    // Add referrerpolicy to prevent information leakage
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+  } catch (e) {
+    console.warn('Error protecting iframe:', e);
   }
 };
 

@@ -271,6 +271,10 @@ const Home = () => {
     navigate('/browse', { state: { contentType: 'tv', selectedCategory: categoryId } });
   };
 
+  const handleShowSports = () => {
+    navigate('/sports');
+  };
+
   const handleMediaClick = async (media: Movie) => {
     setSelectedMedia(media);
     const mediaType = media.media_type || 'movie';
@@ -708,6 +712,7 @@ const Home = () => {
               onFilterCategory={handleFilterCategory}
               onFetchTVSeries={handleFetchTVSeries}
               onFetchTVSeriesByCategory={handleFetchTVSeriesByCategory}
+              onShowSports={handleShowSports}
             />
           </nav>
           

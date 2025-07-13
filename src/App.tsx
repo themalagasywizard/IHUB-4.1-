@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
+import SportsStreaming from "./components/SportsStreaming";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Index />} />
+          <Route path="/sports" element={<SportsStreaming />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
