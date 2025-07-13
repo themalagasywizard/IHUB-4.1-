@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Play, ArrowLeft, Tv, Users, Calendar } from 'lucide-react';
+import { Play, ArrowLeft, Tv, Users, Calendar, Search, Star } from 'lucide-react';
 import { protectIframe, initializeBlockers } from '../utils/contentBlocker';
+import StarryBackground from './StarryBackground';
+import Settings from './Settings';
+import MediaNavigation from './MediaNavigation';
 
 interface SportsChannel {
   id: string;
@@ -71,13 +75,63 @@ const sportsChannels: SportsChannel[] = [
   }
 ];
 
+// Movie/Series categories for navigation consistency
+const categories = {
+  '28': 'Action',
+  '12': 'Adventure',
+  '16': 'Animation',
+  '35': 'Comedy',
+  '80': 'Crime',
+  '99': 'Documentary',
+  '18': 'Drama',
+  '10751': 'Family',
+  '14': 'Fantasy',
+  '36': 'History',
+  '27': 'Horror',
+  '10402': 'Music',
+  '9648': 'Mystery',
+  '10749': 'Romance',
+  '878': 'Science Fiction',
+  '10770': 'TV Movie',
+  '53': 'Thriller',
+  '10752': 'War',
+  '37': 'Western'
+};
+
+const seriesCategories = {
+  '10759': 'Action & Adventure',
+  '16': 'Animation',
+  '35': 'Comedy',
+  '80': 'Crime',
+  '99': 'Documentary',
+  '18': 'Drama',
+  '10751': 'Family',
+  '10762': 'Kids',
+  '9648': 'Mystery',
+  '10763': 'News',
+  '10764': 'Reality',
+  '10765': 'Sci-Fi & Fantasy',
+  '10766': 'Soap',
+  '10767': 'Talk',
+  '10768': 'War & Politics',
+  '37': 'Western'
+};
+
 const SportsStreaming = () => {
+  const navigate = useNavigate();
   const [selectedChannel, setSelectedChannel] = useState<SportsChannel | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [isDyslexicFont, setIsDyslexicFont] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  const categories = ['All', 'Tennis', 'Football', 'Mixed Sports'];
+  const sportsCategories = ['All', 'Tennis', 'Football', 'Mixed Sports'];
+
+  // Filter channels based on selected category
+  const filteredChannels = selectedCategory === 'All' 
+    ? sportsChannels 
+    : sportsChannels.filter(channel => channel.category === selectedCategory);
 
   // Initialize enhanced content blockers on component mount
   useEffect(() => {
@@ -87,7 +141,6 @@ const SportsStreaming = () => {
     // Test popup blocking functionality
     const testPopupBlocking = () => {
       console.log('Testing popup blocking...');
-      // This should be blocked by our enhanced blocker
       try {
         const testPopup = window.open('https://example.com/popup-test', '_blank');
         if (!testPopup) {
@@ -100,19 +153,47 @@ const SportsStreaming = () => {
       }
     };
     
-    // Test after a short delay
     setTimeout(testPopupBlocking, 1000);
   }, []);
 
-  const filteredChannels = selectedCategory === 'All' 
-    ? sportsChannels 
-    : sportsChannels.filter(channel => channel.category === selectedCategory);
+  // Navigation handlers to maintain consistency
+  const handleShowAll = () => {
+    navigate('/browse');
+  };
+
+  const handleFilterCategory = (categoryId: string) => {
+    navigate('/browse', { state: { category: categoryId } });
+  };
+
+  const handleFetchTVSeries = () => {
+    navigate('/browse', { state: { showSeries: true } });
+  };
+
+  const handleFetchTVSeriesByCategory = (categoryId: string) => {
+    navigate('/browse', { state: { showSeries: true, category: categoryId } });
+  };
+
+  const handleShowSports = () => {
+    // Already on sports page
+  };
+
+  const navigateToSearch = () => {
+    navigate('/browse');
+  };
+
+  const handleLanguageChange = (language: string) => {
+    setCurrentLanguage(language);
+  };
+
+  const toggleDyslexicFont = () => {
+    setIsDyslexicFont(!isDyslexicFont);
+  };
 
   const playChannel = (channel: SportsChannel) => {
     setSelectedChannel(channel);
     setShowPlayer(true);
     
-    const videoContainer = videoContainerRef.current;
+    const videoContainer = document.getElementById('video-container');
     if (videoContainer) {
       // Clear existing content
       while (videoContainer.firstChild) {
@@ -149,12 +230,11 @@ const SportsStreaming = () => {
       iframe.style.transition = 'opacity 0.3s ease';
       iframe.src = channel.embedUrl;
 
-      // Apply content blocker protection (with error handling)
+      // Apply content blocker protection
       try {
         protectIframe(iframe);
       } catch (error) {
         console.warn('Iframe protection failed:', error);
-        // Continue without protection if it fails
       }
 
       // Add iframe to container
@@ -163,19 +243,15 @@ const SportsStreaming = () => {
       const handleLoad = () => {
         iframe.style.opacity = '1';
         loadingDiv.remove();
-        iframe.removeEventListener('load', handleLoad);
-        iframe.removeEventListener('error', handleError);
+        console.log(`${channel.name} loaded successfully`);
       };
 
       const handleError = () => {
+        console.error(`Failed to load ${channel.name}`);
         loadingDiv.innerHTML = `
           <div class="text-center text-white">
-            <div class="text-red-500 text-4xl mb-4">⚠️</div>
-            <p class="text-lg font-medium mb-2">Unable to load ${channel.name}</p>
-            <p class="text-sm text-gray-400 mb-4">The stream may be temporarily unavailable</p>
-            <button onclick="location.reload()" class="px-4 py-2 bg-[#ea384c] rounded-md hover:bg-[#ff4d63] transition-colors">
-              Retry
-            </button>
+            <p class="text-lg font-medium text-red-400">Failed to load ${channel.name}</p>
+            <p class="text-sm text-gray-400 mt-2">Please try again later</p>
           </div>
         `;
       };
@@ -183,22 +259,15 @@ const SportsStreaming = () => {
       iframe.addEventListener('load', handleLoad);
       iframe.addEventListener('error', handleError);
 
-      // Set a timeout for loading
-      setTimeout(() => {
-        if (loadingDiv.parentNode) {
-          handleError();
-        }
-      }, 15000);
-
-      // Scroll to player
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll to video container
+      videoContainer.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
   const closePlayer = () => {
     setShowPlayer(false);
     setSelectedChannel(null);
-    const videoContainer = videoContainerRef.current;
+    const videoContainer = document.getElementById('video-container');
     if (videoContainer) {
       while (videoContainer.firstChild) {
         videoContainer.removeChild(videoContainer.firstChild);
@@ -208,19 +277,72 @@ const SportsStreaming = () => {
 
   return (
     <div className="min-h-screen bg-[#141414] text-white relative">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-white flex items-center gap-3">
-            <Tv className="w-8 h-8 text-[#ea384c]" />
-            Sports Streaming
-          </h1>
-          <p className="text-gray-400 text-lg">Watch live sports from around the world</p>
+      <StarryBackground />
+
+      {/* Main iHub Header - Same as Home/Index */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[rgba(20,20,20,0.95)] backdrop-blur-md shadow-lg shadow-black/50 border-b border-[#2a2a2a]">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <nav className="flex items-center">
+            <MediaNavigation
+              categories={categories}
+              seriesCategories={seriesCategories}
+              onShowAll={handleShowAll}
+              onFilterCategory={handleFilterCategory}
+              onFetchTVSeries={handleFetchTVSeries}
+              onFetchTVSeriesByCategory={handleFetchTVSeriesByCategory}
+              onShowSports={handleShowSports}
+            />
+          </nav>
+          
+          <div className="flex items-center absolute left-1/2 -translate-x-1/2">
+            <img 
+              src="https://i.imgur.com/hcwPIIr.png"
+              alt="iHub"
+              className="h-8 w-auto cursor-pointer hover:opacity-80 transition-opacity select-none"
+              onClick={() => {
+                // Clear video container
+                const videoContainer = document.getElementById('video-container');
+                if (videoContainer) {
+                  while (videoContainer.firstChild) {
+                    videoContainer.removeChild(videoContainer.firstChild);
+                  }
+                }
+                // Navigate to home
+                navigate('/');
+              }}
+            />
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={navigateToSearch}
+              className="p-2 rounded-full hover:bg-[rgba(234,56,76,0.1)] transition-colors"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full hover:bg-[rgba(234,56,76,0.1)] transition-colors"
+              disabled
+            >
+              <Star className="w-5 h-5" />
+            </button>
+            
+            <Settings
+              currentLanguage={currentLanguage}
+              isDyslexicFont={isDyslexicFont}
+              onLanguageChange={handleLanguageChange}
+              onToggleDyslexicFont={toggleDyslexicFont}
+            />
+          </div>
         </div>
+      </header>
 
-        {/* Video Player Container */}
-        <div ref={videoContainerRef} className="mb-8 relative" />
+      {/* Video Container - Same as Home/Index */}
+      <div id="video-container" className="container mx-auto pt-24 pb-8 relative" />
 
+      {/* Main Content */}
+      <main className="container mx-auto pt-8 pb-12">
         {/* Back Button when player is active */}
         {showPlayer && selectedChannel && (
           <div className="mb-6">
@@ -252,86 +374,110 @@ const SportsStreaming = () => {
           </div>
         )}
 
-        {/* Category Filter */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => (
+        {/* Sports Content when no player is active */}
+        {!showPlayer && (
+          <>
+            {/* Sports Header */}
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold mb-2 text-white flex items-center gap-3">
+                <Tv className="w-8 h-8 text-[#ea384c]" />
+                Sports Streaming
+              </h1>
+              <p className="text-gray-400 text-lg">Watch live sports from around the world</p>
+            </div>
+
+            {/* Category Filter */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2">
+                {sportsCategories.map(category => (
+                  <Button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`${
+                      selectedCategory === category
+                        ? 'bg-[#ea384c] hover:bg-[#ff4d63]'
+                        : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'
+                    } text-white border-none transition-colors`}
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Channels Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredChannels.map(channel => (
+                <Card key={channel.id} className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-[#ea384c] transition-all duration-300 group">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-lg group-hover:text-[#ea384c] transition-colors">
+                        {channel.name}
+                      </CardTitle>
+                      {channel.isLive && (
+                        <div className="flex items-center gap-1 text-xs text-red-500">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                          LIVE
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm">{channel.description}</p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Users className="w-4 h-4" />
+                        <span>{channel.category}</span>
+                      </div>
+                      {channel.event && (
+                        <div className="flex items-center gap-1 text-sm text-gray-400">
+                          <Calendar className="w-4 h-4" />
+                          <span>{channel.event}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => playChannel(channel)}
+                      className="w-full bg-[#ea384c] hover:bg-[#ff4d63] text-white border-none transition-colors"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Watch Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Featured Channel Highlight */}
+            <div className="mt-12 p-6 bg-gradient-to-r from-[#ea384c]/20 to-[#ff4d63]/20 rounded-lg border border-[#ea384c]/30">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-3 h-3 bg-[#ea384c] rounded-full animate-pulse"></div>
+                <h3 className="text-xl font-bold text-white">Featured: Wimbledon Final</h3>
+              </div>
+              <p className="text-gray-300 mb-4">
+                Watch the Wimbledon Final live on beIN Sports 1 FR. Don't miss this historic tennis match!
+              </p>
               <Button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`${
-                  selectedCategory === category
-                    ? 'bg-[#ea384c] hover:bg-[#ff4d63]'
-                    : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'
-                } text-white border-none transition-colors`}
+                onClick={() => playChannel(sportsChannels[0])}
+                className="bg-[#ea384c] hover:bg-[#ff4d63] text-white border-none"
               >
-                {category}
+                <Play className="w-4 h-4 mr-2" />
+                Watch Wimbledon Final
               </Button>
-            ))}
-          </div>
-        </div>
+            </div>
+          </>
+        )}
+      </main>
 
-        {/* Channels Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredChannels.map(channel => (
-            <Card key={channel.id} className="bg-[#1a1a1a] border-[#2a2a2a] hover:border-[#ea384c] transition-all duration-300 group">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white text-lg group-hover:text-[#ea384c] transition-colors">
-                    {channel.name}
-                  </CardTitle>
-                  {channel.isLive && (
-                    <div className="flex items-center gap-1 text-xs text-red-500">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      LIVE
-                    </div>
-                  )}
-                </div>
-                <p className="text-gray-400 text-sm">{channel.description}</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Users className="w-4 h-4" />
-                    <span>{channel.category}</span>
-                  </div>
-                  {channel.event && (
-                    <div className="flex items-center gap-1 text-sm text-gray-400">
-                      <Calendar className="w-4 h-4" />
-                      <span>{channel.event}</span>
-                    </div>
-                  )}
-                </div>
-                <Button
-                  onClick={() => playChannel(channel)}
-                  className="w-full bg-[#ea384c] hover:bg-[#ff4d63] text-white border-none transition-colors"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Watch Now
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Featured Channel Highlight */}
-        <div className="mt-12 p-6 bg-gradient-to-r from-[#ea384c]/20 to-[#ff4d63]/20 rounded-lg border border-[#ea384c]/30">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-3 h-3 bg-[#ea384c] rounded-full animate-pulse"></div>
-            <h3 className="text-xl font-bold text-white">Featured: Wimbledon Final</h3>
-          </div>
-          <p className="text-gray-300 mb-4">
-            Watch the Wimbledon Final live on beIN Sports 1 FR. Don't miss this historic tennis match!
-          </p>
-          <Button
-            onClick={() => playChannel(sportsChannels[0])}
-            className="bg-[#ea384c] hover:bg-[#ff4d63] text-white border-none"
-          >
-            <Play className="w-4 h-4 mr-2" />
-            Watch Wimbledon Final
-          </Button>
-        </div>
-      </div>
+      {/* Footer - Same as Home/Index */}
+      <footer className="mt-8 pb-12 text-center text-sm text-gray-400">
+        <p className="font-medium">
+          © Copyright {new Date().getFullYear()} by{' '}
+          <span className="text-[#ea384c] hover:text-[#ff4d63] transition-colors duration-300">
+            Oz
+          </span>
+        </p>
+      </footer>
     </div>
   );
 };
