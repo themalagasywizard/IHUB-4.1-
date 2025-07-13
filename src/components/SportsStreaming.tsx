@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Play, ArrowLeft, Tv, Users, Calendar } from 'lucide-react';
@@ -79,14 +79,29 @@ const SportsStreaming = () => {
 
   const categories = ['All', 'Tennis', 'Football', 'Mixed Sports'];
 
+  // Initialize enhanced content blockers on component mount
   useEffect(() => {
-    // Initialize content blockers when component mounts (with error handling)
-    try {
-      initializeBlockers();
-    } catch (error) {
-      console.warn('Content blockers initialization failed:', error);
-      // Continue without blockers if they fail
-    }
+    console.log('Initializing enhanced content blockers for sports streaming...');
+    initializeBlockers();
+    
+    // Test popup blocking functionality
+    const testPopupBlocking = () => {
+      console.log('Testing popup blocking...');
+      // This should be blocked by our enhanced blocker
+      try {
+        const testPopup = window.open('https://example.com/popup-test', '_blank');
+        if (!testPopup) {
+          console.log('✅ Popup blocking working correctly');
+        } else {
+          console.warn('⚠️ Popup blocking may not be working');
+        }
+      } catch (e) {
+        console.log('✅ Popup blocking working correctly (exception caught)');
+      }
+    };
+    
+    // Test after a short delay
+    setTimeout(testPopupBlocking, 1000);
   }, []);
 
   const filteredChannels = selectedCategory === 'All' 
