@@ -1,5 +1,17 @@
 // Real-time sports data service - Aggregates data from multiple APIs for live streaming
-import { formatDistanceToNow, parseISO } from 'date-fns';
+
+// Simple time formatting utility to replace date-fns
+const formatDistanceToNow = (date: Date): string => {
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  
+  if (diffMins < 0) return 'now';
+  if (diffMins < 60) return `${diffMins} minutes`;
+  if (diffHours < 24) return `${diffHours} hours`;
+  return `${Math.floor(diffHours / 24)} days`;
+};
 
 // Sports API configuration
 const SPORTS_APIS = {
@@ -7,15 +19,16 @@ const SPORTS_APIS = {
     baseUrl: 'https://www.thesportsdb.com/api/v1/json/123',
     rateLimitMs: 1000, // 1 second between requests
   },
-  apifootball: {
-    baseUrl: 'https://api.api-football.com/v3',
-    apiKey: '', // Free plan - no key needed for basic endpoints
-    rateLimitMs: 2000, // 2 seconds between requests
-  },
-  // Free alternative API for live scores
-  freeAPI: {
-    baseUrl: 'https://api-football-v1.p.rapidapi.com/v3',
+  // API-Sports free tier (100 requests/day)
+  apisports: {
+    baseUrl: 'https://api-sports.io',
+    apiKey: '', // Free tier - 100 requests/day
     rateLimitMs: 3000, // 3 seconds between requests - conservative for free tier
+  },
+  // Sports Open Data API (free)
+  sportsopendata: {
+    baseUrl: 'https://api.openligadb.de/api',
+    rateLimitMs: 2000, // 2 seconds between requests
   }
 };
 
@@ -207,7 +220,7 @@ const HIGH_PROFILE_EVENTS = [
 
 class SportsDataService {
   private cache = new Map<string, { data: LiveSportsEvent[]; timestamp: number }>();
-  private readonly CACHE_DURATION = 30000; // 30 seconds cache
+  private readonly CACHE_DURATION = 60000; // 1 minute cache for real-time data
   private lastApiCall = new Map<string, number>();
 
   // Clear cache method for manual refresh
@@ -238,8 +251,7 @@ class SportsDataService {
   private async aggregateFromMultipleSources(sport?: SportType): Promise<LiveSportsEvent[]> {
     const results = await Promise.allSettled([
       this.fetchFromTheSportsDB(sport),
-      this.fetchFromCustomSources(sport),
-      this.fetchScheduledEvents(sport)
+      this.fetchFromAPISports(sport),
     ]);
 
     const allEvents: LiveSportsEvent[] = [];
@@ -249,6 +261,8 @@ class SportsDataService {
         allEvents.push(...result.value);
       }
     });
+
+    console.log(`Fetched ${allEvents.length} real sports events from APIs`);
 
     // Deduplicate and sort by importance
     return this.deduplicateAndSort(allEvents);
@@ -262,17 +276,21 @@ class SportsDataService {
       const events: LiveSportsEvent[] = [];
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
+      console.log(`Fetching events from TheSportsDB for date: ${today}`);
+      
       // Get today's events using the correct endpoint
       const response = await fetch(
         `${SPORTS_APIS.theSportsDB.baseUrl}/eventsday.php?d=${today}`,
         { 
           headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(10000)
         }
       );
 
       if (response.ok) {
         const data = await response.json();
+        console.log('TheSportsDB response:', data);
+        
         if (data.events && Array.isArray(data.events)) {
           const normalizedEvents = data.events
             .filter((event: any) => {
@@ -287,13 +305,37 @@ class SportsDataService {
             .filter((event: LiveSportsEvent | null) => event !== null);
           
           events.push(...normalizedEvents);
+          console.log(`TheSportsDB returned ${normalizedEvents.length} events`);
+        } else {
+          console.log('No events found in TheSportsDB response');
         }
+      } else {
+        console.warn(`TheSportsDB API returned status: ${response.status}`);
       }
       
       this.updateApiCallTime('theSportsDB');
       return events;
     } catch (error) {
       console.warn('TheSportsDB API error:', error);
+      return [];
+    }
+  }
+
+  // Fetch from API-Sports (free tier)
+  private async fetchFromAPISports(sport?: SportType): Promise<LiveSportsEvent[]> {
+    if (!this.canMakeApiCall('apisports')) return [];
+
+    try {
+      const events: LiveSportsEvent[] = [];
+      
+      // Try to fetch from API-Sports free tier
+      // Note: This requires an API key for the free tier
+      console.log('API-Sports integration would require API key setup');
+      
+      this.updateApiCallTime('apisports');
+      return events;
+    } catch (error) {
+      console.warn('API-Sports error:', error);
       return [];
     }
   }
@@ -323,7 +365,19 @@ class SportsDataService {
   private normalizeTheSportsDBEvent(event: any): LiveSportsEvent | null {
     try {
       const sport = this.mapSportFromTheSportsDB(event.strSport);
-      const startTime = event.strTimestamp ? new Date(event.strTimestamp) : new Date();
+      const startTime = event.strTimestamp ? new Date(event.strTimestamp) : 
+                       event.dateEvent && event.strTime ? 
+                       new Date(`${event.dateEvent}T${event.strTime}`) : 
+                       new Date();
+      
+      // Only include events that are today or in the future
+      const now = new Date();
+      const eventDate = new Date(startTime);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      if (eventDate < todayStart) {
+        return null; // Skip past events
+      }
       
       return {
         id: event.idEvent || `thesportsdb-${Date.now()}-${Math.random()}`,
@@ -347,170 +401,6 @@ class SportsDataService {
       console.warn('Error normalizing TheSportsDB event:', error);
       return null;
     }
-  }
-
-  // Enhanced custom sources with real current events
-  private async fetchFromCustomSources(sport?: SportType): Promise<LiveSportsEvent[]> {
-    const now = new Date();
-    const events: LiveSportsEvent[] = [];
-
-    // Tennis events - Current ATP/WTA tournaments
-    if (!sport || sport === 'tennis') {
-      events.push({
-        id: 'atp-bastad-2025',
-        sport: 'tennis',
-        league: 'ATP Tour',
-        tournament: 'ATP Bastad',
-        homeTeam: 'Sebastian Baez',
-        awayTeam: 'Luciano Darderi',
-        homeScore: 0,
-        awayScore: 1,
-        status: 'live',
-        startTime: new Date(now.getTime() - 2400000), // Started 40 minutes ago
-        venue: 'Bastad Tennis Stadium',
-        country: 'Sweden',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['tennis'],
-        liveScoreUrl: 'https://www.atptour.com/en/tournaments/bastad/316/overview',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1544718042-f1e6e9c3c99e?w=400'
-      });
-
-      events.push({
-        id: 'wta-hamburg-2025',
-        sport: 'tennis',
-        league: 'WTA Tour',
-        tournament: 'WTA Hamburg',
-        homeTeam: 'Ekaterina Alexandrova',
-        awayTeam: 'Anna Bondar',
-        homeScore: 1,
-        awayScore: 0,
-        status: 'live',
-        startTime: new Date(now.getTime() - 1800000), // Started 30 minutes ago
-        venue: 'Am Rothenbaum',
-        country: 'Germany',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['tennis']
-      });
-    }
-
-    // Football events
-    if (!sport || sport === 'football' || sport === 'soccer') {
-      events.push({
-        id: 'premier-league-live-2025',
-        sport: 'football',
-        league: 'Premier League',
-        tournament: 'Premier League',
-        homeTeam: 'Arsenal',
-        awayTeam: 'Manchester City',
-        homeScore: 1,
-        awayScore: 0,
-        status: 'live',
-        startTime: new Date(now.getTime() - 2700000), // Started 45 minutes ago
-        venue: 'Emirates Stadium',
-        country: 'England',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['football']
-      });
-
-      events.push({
-        id: 'la-liga-live-2025',
-        sport: 'football',
-        league: 'La Liga',
-        tournament: 'Spanish La Liga',
-        homeTeam: 'Real Madrid',
-        awayTeam: 'Barcelona',
-        homeScore: 2,
-        awayScore: 1,
-        status: 'live',
-        startTime: new Date(now.getTime() - 3600000), // Started 1 hour ago
-        venue: 'Santiago Bernabéu',
-        country: 'Spain',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['football']
-      });
-    }
-
-    // Basketball events
-    if (!sport || sport === 'basketball') {
-      events.push({
-        id: 'nba-summer-2025',
-        sport: 'basketball',
-        league: 'NBA Summer League',
-        tournament: 'NBA Summer League',
-        homeTeam: 'Los Angeles Lakers',
-        awayTeam: 'Boston Celtics',
-        homeScore: 58,
-        awayScore: 43,
-        status: 'live',
-        startTime: new Date(now.getTime() - 1800000), // Started 30 minutes ago
-        venue: 'Thomas & Mack Center',
-        country: 'USA',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['basketball']
-      });
-    }
-
-    // Baseball events
-    if (!sport || sport === 'baseball') {
-      events.push({
-        id: 'mlb-live-2025',
-        sport: 'baseball',
-        league: 'MLB',
-        tournament: 'Major League Baseball',
-        homeTeam: 'Chicago Cubs',
-        awayTeam: 'Boston Red Sox',
-        homeScore: 3,
-        awayScore: 2,
-        status: 'live',
-        startTime: new Date(now.getTime() - 4200000), // Started 1h 10m ago
-        venue: 'Wrigley Field',
-        country: 'USA',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['baseball']
-      });
-    }
-
-    return events;
-  }
-
-  // Fetch scheduled events for the next few hours
-  private async fetchScheduledEvents(sport?: SportType): Promise<LiveSportsEvent[]> {
-    const now = new Date();
-    const events: LiveSportsEvent[] = [];
-
-    // Add upcoming high-profile events
-    const upcomingEvents = [
-      {
-        id: 'champions-league-upcoming',
-        sport: 'football' as SportType,
-        league: 'UEFA Champions League',
-        tournament: 'Champions League Final',
-        homeTeam: 'Manchester City',
-        awayTeam: 'Inter Milan',
-        status: 'scheduled' as const,
-        startTime: new Date(now.getTime() + 7200000), // In 2 hours
-        venue: 'Wembley Stadium',
-        country: 'England',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['football']
-      },
-      {
-        id: 'us-open-upcoming',
-        sport: 'tennis' as SportType,
-        league: 'ATP Tour',
-        tournament: 'US Open',
-        homeTeam: 'Novak Djokovic',
-        awayTeam: 'Carlos Alcaraz',
-        status: 'scheduled' as const,
-        startTime: new Date(now.getTime() + 10800000), // In 3 hours
-        venue: 'Arthur Ashe Stadium',
-        country: 'USA',
-        isHighProfile: true,
-        streamingSources: STREAMING_SOURCES_MAP['tennis']
-      }
-    ];
-
-    return upcomingEvents.filter(event => !sport || event.sport === sport);
   }
 
   // Get streaming sources for specific event
