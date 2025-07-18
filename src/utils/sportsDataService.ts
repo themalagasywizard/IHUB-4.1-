@@ -1,4 +1,4 @@
-// Real-time sports data service - Aggregates data from multiple APIs for live streaming
+// Real-time sports data service - Focused on key sports: Football, Tennis, Basketball, Boxing/MMA
 
 // Simple time formatting utility to replace date-fns
 const formatDistanceToNow = (date: Date): string => {
@@ -32,11 +32,8 @@ const SPORTS_APIS = {
   }
 };
 
-// Standardized sport types
-export type SportType = 
-  | 'football' | 'soccer' | 'tennis' | 'basketball' | 'baseball' 
-  | 'rugby' | 'cricket' | 'golf' | 'hockey' | 'volleyball'
-  | 'americanfootball' | 'motorsport' | 'boxing' | 'mma';
+// Focused sport types - only the ones requested
+export type SportType = 'football' | 'tennis' | 'basketball' | 'boxing' | 'mma';
 
 // Normalized sports event interface
 export interface LiveSportsEvent {
@@ -69,7 +66,7 @@ export interface StreamingSource {
   isOfficial: boolean;
 }
 
-// Enhanced channel mapping for known streaming sources
+// Enhanced channel mapping for focused sports
 const STREAMING_SOURCES_MAP: Record<string, StreamingSource[]> = {
   // Tennis sources - enhanced for current tournaments
   'tennis': [
@@ -150,25 +147,54 @@ const STREAMING_SOURCES_MAP: Record<string, StreamingSource[]> = {
       reliability: 80,
       language: 'en',
       isOfficial: false
+    },
+    {
+      id: 'nba-tv',
+      name: 'NBA TV',
+      url: 'https://daddylive2.top/my/stream-12.php',
+      quality: 'hd',
+      reliability: 88,
+      language: 'en',
+      isOfficial: false
     }
   ],
-  // Baseball sources
-  'baseball': [
+  // Boxing/MMA sources
+  'boxing': [
     {
-      id: 'espn-baseball',
-      name: 'ESPN Baseball',
+      id: 'sky-sports-boxing',
+      name: 'Sky Sports Boxing',
+      url: 'https://daddylive2.top/my/stream-4.php',
+      quality: 'hd',
+      reliability: 90,
+      language: 'en',
+      isOfficial: false
+    },
+    {
+      id: 'espn-boxing',
+      name: 'ESPN Boxing',
       url: 'https://daddylive2.top/my/stream-8.php',
       quality: 'hd',
       reliability: 85,
       language: 'en',
       isOfficial: false
+    }
+  ],
+  'mma': [
+    {
+      id: 'ufc-fight-pass',
+      name: 'UFC Fight Pass',
+      url: 'https://daddylive2.top/my/stream-ufc.php',
+      quality: 'hd',
+      reliability: 92,
+      language: 'en',
+      isOfficial: false
     },
     {
-      id: 'fox-sports-baseball',
-      name: 'Fox Sports Baseball',
-      url: 'https://daddylive2.top/my/stream-3.php',
+      id: 'espn-mma',
+      name: 'ESPN MMA',
+      url: 'https://daddylive2.top/my/stream-8.php',
       quality: 'hd',
-      reliability: 82,
+      reliability: 85,
       language: 'en',
       isOfficial: false
     }
@@ -192,30 +218,25 @@ const STREAMING_SOURCES_MAP: Record<string, StreamingSource[]> = {
       reliability: 80,
       language: 'en',
       isOfficial: false
-    },
-    {
-      id: 'bein-sports-1',
-      name: 'beIN Sports 1',
-      url: 'https://daddylive2.top/my/stream-116.php',
-      quality: 'hd',
-      reliability: 85,
-      language: 'fr',
-      isOfficial: false
     }
   ]
 };
 
-// High-profile events that should be prioritized
+// High-profile events for focused sports only
 const HIGH_PROFILE_EVENTS = [
   // Tennis
   'wimbledon', 'us open', 'french open', 'australian open', 'atp finals',
   'indian wells', 'miami open', 'monte carlo', 'madrid open', 'rome masters',
-  'gstaad', 'basel', 'vienna', 'paris masters', 'hamburg', 'bastad',
-  // Football
+  'atp masters', 'wta finals', 'davis cup', 'laver cup',
+  // Football (Soccer)
   'premier league', 'champions league', 'europa league', 'world cup', 'euros',
-  'la liga', 'serie a', 'bundesliga', 'ligue 1',
-  // Other sports
-  'nba finals', 'super bowl', 'world series', 'stanley cup'
+  'la liga', 'serie a', 'bundesliga', 'ligue 1', 'copa america', 'nations league',
+  // Basketball
+  'nba finals', 'nba playoffs', 'euroleague', 'world cup basketball', 'olympics basketball',
+  'nba', 'wnba', 'ncaa tournament', 'march madness',
+  // Boxing/MMA
+  'world championship', 'title fight', 'ufc', 'bellator', 'pfl', 'one championship',
+  'heavyweight championship', 'wbc', 'wba', 'ibf', 'wbo'
 ];
 
 class SportsDataService {
@@ -228,7 +249,7 @@ class SportsDataService {
     this.cache.clear();
   }
 
-  // Fetch live sports events with intelligent aggregation
+  // Fetch live sports events with fallback to future events
   async getLiveSportsEvents(sport?: SportType): Promise<LiveSportsEvent[]> {
     const cacheKey = `live-events-${sport || 'all'}`;
     const cached = this.cache.get(cacheKey);
@@ -239,11 +260,48 @@ class SportsDataService {
 
     try {
       const events = await this.aggregateFromMultipleSources(sport);
-      this.cache.set(cacheKey, { data: events, timestamp: Date.now() });
-      return events;
+      
+      // If no live events found, get upcoming events for the next 7 days
+      let finalEvents = events;
+      const liveEvents = events.filter(event => event.status === 'live');
+      
+      if (liveEvents.length === 0) {
+        console.log('No live events found, fetching upcoming events...');
+        const upcomingEvents = await this.getUpcomingEventsFromSources(sport, 7 * 24); // 7 days
+        finalEvents = [...events, ...upcomingEvents];
+      }
+      
+      this.cache.set(cacheKey, { data: finalEvents, timestamp: Date.now() });
+      return finalEvents;
     } catch (error) {
       console.warn('Failed to fetch live sports events:', error);
       return cached?.data || [];
+    }
+  }
+
+  // Get upcoming events from multiple sources
+  private async getUpcomingEventsFromSources(sport?: SportType, hours: number = 168): Promise<LiveSportsEvent[]> {
+    try {
+      const events: LiveSportsEvent[] = [];
+      const endDate = new Date(Date.now() + hours * 3600000);
+      
+      // Fetch from multiple days to get upcoming events
+      for (let i = 1; i <= 7; i++) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + i);
+        const dateStr = futureDate.toISOString().split('T')[0];
+        
+        const dayEvents = await this.fetchFromTheSportsDBByDate(dateStr, sport);
+        events.push(...dayEvents);
+      }
+      
+      return events.filter(event => 
+        event.status === 'scheduled' && 
+        event.startTime <= endDate
+      );
+    } catch (error) {
+      console.warn('Error fetching upcoming events:', error);
+      return [];
     }
   }
 
@@ -262,25 +320,30 @@ class SportsDataService {
       }
     });
 
-    console.log(`Fetched ${allEvents.length} real sports events from APIs`);
+    console.log(`Fetched ${allEvents.length} sports events from APIs`);
+
+    // Filter for focused sports only
+    const filteredEvents = allEvents.filter(event => 
+      ['football', 'tennis', 'basketball', 'boxing', 'mma'].includes(event.sport)
+    );
+
+    console.log(`Filtered to ${filteredEvents.length} events for focused sports`);
 
     // Deduplicate and sort by importance
-    return this.deduplicateAndSort(allEvents);
+    return this.deduplicateAndSort(filteredEvents);
   }
 
-  // Updated TheSportsDB API fetch with correct endpoints
-  private async fetchFromTheSportsDB(sport?: SportType): Promise<LiveSportsEvent[]> {
+  // Fetch events for a specific date
+  private async fetchFromTheSportsDBByDate(date: string, sport?: SportType): Promise<LiveSportsEvent[]> {
     if (!this.canMakeApiCall('theSportsDB')) return [];
 
     try {
       const events: LiveSportsEvent[] = [];
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      console.log(`Fetching events from TheSportsDB for date: ${today}`);
+      console.log(`Fetching events from TheSportsDB for date: ${date}`);
       
-      // Get today's events using the correct endpoint
       const response = await fetch(
-        `${SPORTS_APIS.theSportsDB.baseUrl}/eventsday.php?d=${today}`,
+        `${SPORTS_APIS.theSportsDB.baseUrl}/eventsday.php?d=${date}`,
         { 
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(10000)
@@ -289,15 +352,18 @@ class SportsDataService {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('TheSportsDB response:', data);
         
         if (data.events && Array.isArray(data.events)) {
           const normalizedEvents = data.events
             .filter((event: any) => {
+              const eventSport = this.mapSportFromTheSportsDB(event.strSport);
+              // Only include our focused sports
+              if (!['football', 'tennis', 'basketball', 'boxing', 'mma'].includes(eventSport)) {
+                return false;
+              }
               // Filter by sport if specified
-              if (sport) {
-                const eventSport = this.mapSportFromTheSportsDB(event.strSport);
-                return eventSport === sport;
+              if (sport && eventSport !== sport) {
+                return false;
               }
               return true;
             })
@@ -305,20 +371,22 @@ class SportsDataService {
             .filter((event: LiveSportsEvent | null) => event !== null);
           
           events.push(...normalizedEvents);
-          console.log(`TheSportsDB returned ${normalizedEvents.length} events`);
-        } else {
-          console.log('No events found in TheSportsDB response');
+          console.log(`TheSportsDB returned ${normalizedEvents.length} events for ${date}`);
         }
-      } else {
-        console.warn(`TheSportsDB API returned status: ${response.status}`);
       }
       
       this.updateApiCallTime('theSportsDB');
       return events;
     } catch (error) {
-      console.warn('TheSportsDB API error:', error);
+      console.warn(`TheSportsDB API error for date ${date}:`, error);
       return [];
     }
+  }
+
+  // Updated TheSportsDB API fetch with correct endpoints
+  private async fetchFromTheSportsDB(sport?: SportType): Promise<LiveSportsEvent[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return this.fetchFromTheSportsDBByDate(today, sport);
   }
 
   // Fetch from API-Sports (free tier)
@@ -340,44 +408,33 @@ class SportsDataService {
     }
   }
 
-  // Map sport from TheSportsDB to our standardized format
+  // Map sport from TheSportsDB to our focused format
   private mapSportFromTheSportsDB(sportStr: string): SportType {
     const sport = sportStr?.toLowerCase() || '';
     
     if (sport.includes('soccer') || sport.includes('football')) return 'football';
     if (sport.includes('tennis')) return 'tennis';
     if (sport.includes('basketball')) return 'basketball';
-    if (sport.includes('baseball')) return 'baseball';
-    if (sport.includes('rugby')) return 'rugby';
-    if (sport.includes('cricket')) return 'cricket';
-    if (sport.includes('golf')) return 'golf';
-    if (sport.includes('hockey')) return 'hockey';
-    if (sport.includes('volleyball')) return 'volleyball';
-    if (sport.includes('american football')) return 'americanfootball';
-    if (sport.includes('motorsport') || sport.includes('racing')) return 'motorsport';
     if (sport.includes('boxing')) return 'boxing';
-    if (sport.includes('mma')) return 'mma';
+    if (sport.includes('mma') || sport.includes('mixed martial arts')) return 'mma';
     
-    return 'football'; // Default fallback
+    return 'football'; // Default fallback to football
   }
 
   // Normalize TheSportsDB event data
   private normalizeTheSportsDBEvent(event: any): LiveSportsEvent | null {
     try {
       const sport = this.mapSportFromTheSportsDB(event.strSport);
+      
+      // Skip if not one of our focused sports
+      if (!['football', 'tennis', 'basketball', 'boxing', 'mma'].includes(sport)) {
+        return null;
+      }
+      
       const startTime = event.strTimestamp ? new Date(event.strTimestamp) : 
                        event.dateEvent && event.strTime ? 
                        new Date(`${event.dateEvent}T${event.strTime}`) : 
                        new Date();
-      
-      // Only include events that are today or in the future
-      const now = new Date();
-      const eventDate = new Date(startTime);
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      if (eventDate < todayStart) {
-        return null; // Skip past events
-      }
       
       return {
         id: event.idEvent || `thesportsdb-${Date.now()}-${Math.random()}`,
@@ -405,8 +462,6 @@ class SportsDataService {
 
   // Get streaming sources for specific event
   private getStreamingSourcesForEvent(league: string, sport: SportType): StreamingSource[] {
-    const leagueLower = league?.toLowerCase() || '';
-    
     // Get sport-specific sources
     const sportSources = STREAMING_SOURCES_MAP[sport];
     if (sportSources) {
@@ -449,11 +504,7 @@ class SportsDataService {
     this.lastApiCall.set(apiName, Date.now());
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // Deduplicate and sort events by importance
+  // Deduplicate and sort events by importance with live/upcoming priority
   private deduplicateAndSort(events: LiveSportsEvent[]): LiveSportsEvent[] {
     const uniqueEvents = new Map<string, LiveSportsEvent>();
     
@@ -465,7 +516,7 @@ class SportsDataService {
     });
 
     return Array.from(uniqueEvents.values()).sort((a, b) => {
-      // Prioritize live events
+      // Prioritize live events first
       if (a.status === 'live' && b.status !== 'live') return -1;
       if (b.status === 'live' && a.status !== 'live') return 1;
       
@@ -473,7 +524,7 @@ class SportsDataService {
       if (a.isHighProfile && !b.isHighProfile) return -1;
       if (b.isHighProfile && !a.isHighProfile) return 1;
       
-      // Then by start time (soonest first)
+      // Then by start time (soonest first for upcoming, live events stay at top)
       return a.startTime.getTime() - b.startTime.getTime();
     });
   }
@@ -485,10 +536,18 @@ class SportsDataService {
 
   async getLiveEvents(): Promise<LiveSportsEvent[]> {
     const allEvents = await this.getLiveSportsEvents();
-    return allEvents.filter(event => event.status === 'live');
+    const liveEvents = allEvents.filter(event => event.status === 'live');
+    
+    // If no live events, return upcoming events instead
+    if (liveEvents.length === 0) {
+      console.log('No live events found, returning upcoming events');
+      return this.getUpcomingEvents(24); // Next 24 hours
+    }
+    
+    return liveEvents;
   }
 
-  async getUpcomingEvents(hours: number = 6): Promise<LiveSportsEvent[]> {
+  async getUpcomingEvents(hours: number = 24): Promise<LiveSportsEvent[]> {
     const allEvents = await this.getLiveSportsEvents();
     const cutoff = new Date(Date.now() + hours * 3600000);
     
@@ -499,9 +558,8 @@ class SportsDataService {
   }
 
   async getAvailableSports(): Promise<SportType[]> {
-    const events = await this.getLiveSportsEvents();
-    const sports = new Set(events.map(event => event.sport));
-    return Array.from(sports);
+    // Return only our focused sports
+    return ['football', 'tennis', 'basketball', 'boxing', 'mma'];
   }
 }
 
@@ -517,17 +575,8 @@ export const formatTimeUntilEvent = (startTime: Date): string => {
 export const getSportEmoji = (sport: SportType): string => {
   const emojiMap: Record<SportType, string> = {
     football: '⚽',
-    soccer: '⚽',
     tennis: '🎾',
     basketball: '🏀',
-    baseball: '⚾',
-    rugby: '🏉',
-    cricket: '🏏',
-    golf: '⛳',
-    hockey: '🏒',
-    volleyball: '🏐',
-    americanfootball: '🏈',
-    motorsport: '🏎️',
     boxing: '🥊',
     mma: '🥋'
   };
