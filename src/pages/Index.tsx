@@ -1,16 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Star, ArrowLeft, X } from 'lucide-react';
+import { Search, Star, ArrowLeft } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import StarryBackground from '../components/StarryBackground';
 import PersonSearch from '../components/PersonSearch';
 import Settings from '../components/Settings';
 import MediaDetails from '../components/MediaDetails';
+import VideoPlayer from '../components/VideoPlayer';
 import PasswordAuth from '../components/PasswordAuth';
 import MediaNavigation from '../components/MediaNavigation';
 import { Button } from '@/components/ui/button';
 import { filterCategory, fetchTVSeries, fetchTVSeriesByCategory, handleSearch, fetchMovies, fetchPersonMovies, advancedSearch } from '../utils/mediaUtils';
 import { determineMediaType } from '../utils/mediaTypeUtils';
+import type { MediaKind } from '@/utils/streamSources';
+
+interface PlayingMedia {
+  id: string;
+  type: MediaKind;
+  title?: string;
+  season?: number;
+  episode?: number;
+}
 
 interface Movie {
   id: string;
@@ -87,7 +97,7 @@ const Index = () => {
   const [selectedMediaDetails, setSelectedMediaDetails] = useState<any | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [page, setPage] = useState(1);
-  const [showPlayer, setShowPlayer] = useState(false);
+  const [playingMedia, setPlayingMedia] = useState<PlayingMedia | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [showFavorites, setShowFavorites] = useState(false);
   const [favorites, setFavorites] = useState<Movie[]>([]);
@@ -336,111 +346,26 @@ const Index = () => {
   };
 
   const closePlayer = () => {
-    setShowPlayer(false);
-    const videoContainer = document.getElementById('video-container');
-    if (videoContainer) {
-      while (videoContainer.firstChild) {
-        videoContainer.removeChild(videoContainer.firstChild);
-      }
-    }
+    setPlayingMedia(null);
   };
 
-  const playMedia = (id: string, type: string, specificUrl?: string) => {
+  const playMedia = (id: string, type: string, season?: number, episode?: number) => {
+    const mediaTitle =
+      selectedMediaDetails?.title ||
+      selectedMediaDetails?.name ||
+      selectedMedia?.title ||
+      selectedMedia?.name;
+
+    setPlayingMedia({
+      id: String(id),
+      type: type === 'tv' ? 'tv' : 'movie',
+      title: mediaTitle,
+      season: type === 'tv' ? season ?? 1 : undefined,
+      episode: type === 'tv' ? episode ?? 1 : undefined,
+    });
     setSelectedMedia(null);
     setSelectedMediaDetails(null);
-    setShowPlayer(true);
-    
-    // Try vidsrc.to first for better mobile compatibility
-    const primaryUrl = specificUrl || (type === 'movie'
-      ? `https://vidsrc.to/embed/movie/${id}`
-      : `https://vidsrc.to/embed/tv/${id}/1/1`);
-
-    // Prepare fallback URL using vidsrc.me
-    const fallbackUrl = type === 'movie'
-      ? `https://vidsrc.me/embed/movie?tmdb=${id}`
-      : `https://vidsrc.me/embed/tv?tmdb=${id}&season=1&episode=1`;
-    
-    const videoContainer = document.getElementById('video-container');
-    if (videoContainer) {
-      while (videoContainer.firstChild) {
-        videoContainer.removeChild(videoContainer.firstChild);
-      }
-
-      // Create container for iframe
-      const iframeContainer = document.createElement('div');
-      iframeContainer.className = 'relative w-full aspect-video max-h-[600px]';
-      videoContainer.appendChild(iframeContainer);
-
-      // Add loading indicator
-      const loadingDiv = document.createElement('div');
-      loadingDiv.className = 'absolute inset-0 flex items-center justify-center bg-black rounded-lg';
-      loadingDiv.innerHTML = `
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-[#ea384c] border-t-transparent"></div>
-      `;
-      iframeContainer.appendChild(loadingDiv);
-
-      // Create and configure iframe
-      const iframe = document.createElement('iframe');
-      iframe.className = 'absolute inset-0 w-full h-full rounded-lg shadow-lg bg-black';
-      iframe.setAttribute('allowfullscreen', 'true');
-      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
-      iframe.setAttribute('loading', 'eager');
-      iframe.setAttribute('importance', 'high');
-      iframe.style.opacity = '0';
-      iframe.style.transition = 'opacity 0.3s ease';
-
-      // Add iframe to container
-      iframeContainer.appendChild(iframe);
-
-      let loadAttempts = 0;
-      const maxAttempts = 2;
-
-      const tryLoadSource = (url: string) => {
-        loadAttempts++;
-        iframe.src = url;
-
-        const handleLoad = () => {
-          iframe.style.opacity = '1';
-          loadingDiv.remove();
-          iframe.removeEventListener('load', handleLoad);
-          iframe.removeEventListener('error', handleError);
-        };
-
-        const handleError = () => {
-          if (loadAttempts < maxAttempts) {
-            console.log(`Attempt ${loadAttempts}: Trying fallback source...`);
-            iframe.removeEventListener('load', handleLoad);
-            iframe.removeEventListener('error', handleError);
-            tryLoadSource(fallbackUrl);
-          } else {
-            loadingDiv.innerHTML = `
-              <div class="text-center text-white">
-                <p class="mb-2">Unable to load video</p>
-                <button onclick="location.reload()" class="px-4 py-2 bg-[#ea384c] rounded-md hover:bg-[#ff4d63]">
-                  Retry
-                </button>
-              </div>
-            `;
-          }
-        };
-
-        iframe.addEventListener('load', handleLoad);
-        iframe.addEventListener('error', handleError);
-
-        // Set a timeout for source loading
-        setTimeout(() => {
-          if (loadingDiv.parentNode && loadAttempts < maxAttempts) {
-            handleError();
-          }
-        }, 10000);
-      };
-
-      // Start with primary source
-      tryLoadSource(primaryUrl);
-
-      setShowPlayer(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLanguageChange = (language: string) => {
@@ -458,8 +383,7 @@ const Index = () => {
 
   const handleEpisodeSelect = (seasonNum: number, episodeNum: number) => {
     if (selectedMedia) {
-      const url = `https://vidsrc.to/embed/tv/${selectedMedia.id}/${seasonNum}/${episodeNum}`;
-      playMedia(selectedMedia.id, 'tv', url);
+      playMedia(selectedMedia.id, 'tv', seasonNum, episodeNum);
     }
   };
 
@@ -490,14 +414,7 @@ const Index = () => {
               alt="iHub"
               className="h-8 w-auto cursor-pointer hover:opacity-80 transition-opacity select-none"
               onClick={() => {
-                // Clear video container
-                const videoContainer = document.getElementById('video-container');
-                if (videoContainer) {
-                  while (videoContainer.firstChild) {
-                    videoContainer.removeChild(videoContainer.firstChild);
-                  }
-                }
-                // Reset all states and reload home page
+                closePlayer();
                 window.location.href = '/';
               }}
             />
@@ -531,7 +448,18 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto pt-20 relative z-10">
-        <div id="video-container" className="mb-8 relative" />
+        {playingMedia && (
+          <div className="mb-8 relative">
+            <VideoPlayer
+              tmdbId={playingMedia.id}
+              mediaType={playingMedia.type}
+              title={playingMedia.title}
+              season={playingMedia.season}
+              episode={playingMedia.episode}
+              onClose={closePlayer}
+            />
+          </div>
+        )}
         
         {selectedMediaDetails && (
           <MediaDetails
