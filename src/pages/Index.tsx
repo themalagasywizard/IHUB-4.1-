@@ -13,13 +13,21 @@ import { Button } from '@/components/ui/button';
 import { filterCategory, fetchTVSeries, fetchTVSeriesByCategory, handleSearch, fetchMovies, fetchPersonMovies, advancedSearch } from '../utils/mediaUtils';
 import { determineMediaType } from '../utils/mediaTypeUtils';
 import {
+  SEARCH_AWARDS,
+  SEARCH_CERTIFICATIONS,
   SEARCH_COUNTRIES,
   SEARCH_DECADES,
   SEARCH_LANGUAGES,
+  SEARCH_PROVIDERS,
   SEARCH_RUNTIME_OPTIONS,
   SEARCH_SORT_OPTIONS,
+  SEARCH_STUDIOS,
+  SEARCH_THEMES,
   SEARCH_VOTE_OPTIONS,
+  type SimilarTitle,
 } from '../utils/searchFilters';
+import TitleSearch from '../components/TitleSearch';
+import { markEpisodeWatched } from '../utils/watchProgress';
 import type { MediaKind } from '@/utils/streamSources';
 
 interface PlayingMedia {
@@ -100,6 +108,12 @@ const Index = () => {
   const [searchSort, setSearchSort] = useState('popularity.desc');
   const [searchRuntime, setSearchRuntime] = useState('');
   const [searchMinVotes, setSearchMinVotes] = useState('');
+  const [searchProvider, setSearchProvider] = useState('');
+  const [searchStudio, setSearchStudio] = useState('');
+  const [searchCertification, setSearchCertification] = useState('');
+  const [searchTheme, setSearchTheme] = useState('');
+  const [searchAward, setSearchAward] = useState('');
+  const [similarTitle, setSimilarTitle] = useState<SimilarTitle | null>(null);
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [contentType, setContentType] = useState<'movie' | 'tv'>('movie');
@@ -257,6 +271,12 @@ const Index = () => {
               sortBy: searchSort,
               runtime: searchRuntime,
               minVotes: searchMinVotes,
+              provider: searchProvider,
+              company: searchStudio,
+              certification: searchCertification,
+              keyword: searchTheme,
+              award: searchAward,
+              similarToId: similarTitle?.id,
             },
             contentType,
             nextPage
@@ -289,6 +309,12 @@ const Index = () => {
     setSearchSort('popularity.desc');
     setSearchRuntime('');
     setSearchMinVotes('');
+    setSearchProvider('');
+    setSearchStudio('');
+    setSearchCertification('');
+    setSearchTheme('');
+    setSearchAward('');
+    setSimilarTitle(null);
     setShowAdvancedSearch(false);
     setSearchResults([]);
     setSelectedPeople([]);
@@ -306,6 +332,12 @@ const Index = () => {
         sortBy: searchSort,
         runtime: searchRuntime,
         minVotes: searchMinVotes,
+        provider: searchProvider,
+        company: searchStudio,
+        certification: searchCertification,
+        keyword: searchTheme,
+        award: searchAward,
+        similarToId: similarTitle?.id,
       },
       contentType
     );
@@ -396,12 +428,17 @@ const Index = () => {
       selectedMedia?.title ||
       selectedMedia?.name;
 
+    const nextSeason = type === 'tv' ? season ?? 1 : undefined;
+    const nextEpisode = type === 'tv' ? episode ?? 1 : undefined;
+    if (type === 'tv' && nextSeason && nextEpisode) {
+      markEpisodeWatched(String(id), nextSeason, nextEpisode);
+    }
     setPlayingMedia({
       id: String(id),
       type: type === 'tv' ? 'tv' : 'movie',
       title: mediaTitle,
-      season: type === 'tv' ? season ?? 1 : undefined,
-      episode: type === 'tv' ? episode ?? 1 : undefined,
+      season: nextSeason,
+      episode: nextEpisode,
     });
     setSelectedMedia(null);
     setSelectedMediaDetails(null);
@@ -767,6 +804,88 @@ const Index = () => {
                           selectedPeople={selectedPeople}
                           onPersonSelect={(person) => setSelectedPeople([...selectedPeople, person])}
                           onPersonRemove={(personId) => setSelectedPeople(selectedPeople.filter(p => p.id !== personId))}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Streaming service</label>
+                        <select
+                          value={searchProvider}
+                          onChange={(e) => setSearchProvider(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any service</option>
+                          {SEARCH_PROVIDERS.map((provider) => (
+                            <option key={provider.id} value={provider.id}>{provider.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Studio</label>
+                        <select
+                          value={searchStudio}
+                          onChange={(e) => setSearchStudio(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any studio</option>
+                          {SEARCH_STUDIOS.map((studio) => (
+                            <option key={studio.id} value={studio.id}>{studio.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {contentType === 'movie' && (
+                        <div className="space-y-2">
+                          <label className="text-sm text-white/70">Age rating</label>
+                          <select
+                            value={searchCertification}
+                            onChange={(e) => setSearchCertification(e.target.value)}
+                            className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                          >
+                            <option value="">Any rating</option>
+                            {SEARCH_CERTIFICATIONS.map((cert) => (
+                              <option key={cert.value} value={cert.value}>{cert.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Theme</label>
+                        <select
+                          value={searchTheme}
+                          onChange={(e) => setSearchTheme(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any theme</option>
+                          {SEARCH_THEMES.map((theme) => (
+                            <option key={theme.id} value={theme.id}>{theme.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Awards / festival</label>
+                        <select
+                          value={searchAward}
+                          onChange={(e) => setSearchAward(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any award</option>
+                          {SEARCH_AWARDS.map((award) => (
+                            <option key={award.id} value={award.id}>{award.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Similar to</label>
+                        <TitleSearch
+                          contentType={contentType}
+                          selectedTitle={similarTitle}
+                          onSelect={setSimilarTitle}
+                          onClear={() => setSimilarTitle(null)}
                         />
                       </div>
 

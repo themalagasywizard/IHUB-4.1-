@@ -89,6 +89,79 @@ export const SEARCH_VOTE_OPTIONS = [
 
 export const SEARCH_DECADES = ['1950', '1960', '1970', '1980', '1990', '2000', '2010', '2020'];
 
+export const SEARCH_PROVIDERS = [
+  { id: '8', name: 'Netflix' },
+  { id: '9', name: 'Prime Video' },
+  { id: '337', name: 'Disney+' },
+  { id: '1899', name: 'Max' },
+  { id: '350', name: 'Apple TV+' },
+  { id: '15', name: 'Hulu' },
+  { id: '531', name: 'Paramount+' },
+  { id: '386', name: 'Peacock' },
+  { id: '283', name: 'Crunchyroll' },
+  { id: '11', name: 'MUBI' },
+] as const;
+
+export const SEARCH_STUDIOS = [
+  { id: '41077', name: 'A24' },
+  { id: '10342', name: 'Studio Ghibli' },
+  { id: '3', name: 'Pixar' },
+  { id: '420', name: 'Marvel Studios' },
+  { id: '174', name: 'Warner Bros.' },
+  { id: '33', name: 'Universal Pictures' },
+  { id: '4', name: 'Paramount' },
+  { id: '25', name: '20th Century Studios' },
+  { id: '5', name: 'Columbia Pictures' },
+  { id: '21', name: 'MGM' },
+  { id: '3172', name: 'Blumhouse' },
+  { id: '9168', name: 'NEON' },
+  { id: '10146', name: 'Focus Features' },
+  { id: '1632', name: 'Lionsgate' },
+  { id: '923', name: 'Legendary' },
+  { id: '521', name: 'DreamWorks' },
+  { id: '178464', name: 'Netflix' },
+  { id: '3268', name: 'HBO' },
+  { id: '20580', name: 'Amazon Studios' },
+] as const;
+
+export const SEARCH_CERTIFICATIONS = [
+  { value: 'G', label: 'G' },
+  { value: 'PG', label: 'PG' },
+  { value: 'PG-13', label: 'PG-13' },
+  { value: 'R', label: 'R' },
+  { value: 'NC-17', label: 'NC-17' },
+] as const;
+
+export const SEARCH_THEMES = [
+  { id: '10051', name: 'Heist' },
+  { id: '4379', name: 'Time travel' },
+  { id: '818', name: 'Based on a novel' },
+  { id: '9672', name: 'True story' },
+  { id: '9748', name: 'Revenge' },
+  { id: '9715', name: 'Superhero' },
+  { id: '12377', name: 'Zombie' },
+  { id: '9882', name: 'Space' },
+  { id: '10683', name: 'Coming of age' },
+  { id: '163053', name: 'Found footage' },
+] as const;
+
+export const SEARCH_AWARDS = [
+  { id: '337571', name: 'Oscar winner' },
+  { id: '360635', name: 'Academy Awards' },
+  { id: '337964', name: "Palme d'Or" },
+  { id: '366594', name: 'Cannes' },
+  { id: '368640', name: 'Sundance' },
+  { id: '341034', name: 'Golden Globe' },
+  { id: '334043', name: 'Emmy winner' },
+] as const;
+
+export interface SimilarTitle {
+  id: string;
+  title: string;
+  media_type?: string;
+  poster_path?: string | null;
+}
+
 export interface AdvancedSearchFilters {
   year?: string;
   genre?: string;
@@ -99,6 +172,12 @@ export interface AdvancedSearchFilters {
   sortBy?: string;
   runtime?: string;
   minVotes?: string;
+  provider?: string;
+  company?: string;
+  certification?: string;
+  keyword?: string;
+  award?: string;
+  similarToId?: string;
 }
 
 export const sortForContentType = (sortBy: string | undefined, contentType: 'movie' | 'tv') => {

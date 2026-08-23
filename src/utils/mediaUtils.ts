@@ -463,8 +463,46 @@ export const advancedSearch = async (
       }
     }
     
-    // If people are selected, we need to fetch credits for each person
-    if (filters.people && filters.people.length > 0) {
+    const matchesExtraFilters = (item: any) => {
+      if (filters.company && item.production_companies) {
+        const hasCompany = item.production_companies.some(
+          (company: any) => String(company.id) === String(filters.company)
+        );
+        if (!hasCompany) return false;
+      }
+      if (filters.keyword || filters.award) {
+        const keywords = item.keywords?.keywords || item.keywords?.results || [];
+        const needed = [filters.keyword, filters.award].filter(Boolean);
+        const hasAll = needed.every((id) =>
+          keywords.some((keyword: any) => String(keyword.id) === String(id))
+        );
+        if (keywords.length && !hasAll) return false;
+      }
+      return true;
+    };
+
+    if (filters.similarToId && (!filters.people || filters.people.length === 0)) {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/${contentType}/${filters.similarToId}/similar?api_key=${apiKey}&language=en-US&page=${page}`
+      );
+      const data = await response.json();
+      results = (data.results || [])
+        .filter((item: any) => item.poster_path)
+        .filter((item: any) => !filters.genre || item.genre_ids?.some((id: number) => id.toString() === filters.genre))
+        .filter((item: any) => !filters.language || item.original_language === filters.language)
+        .filter((item: any) => !filters.rating || item.vote_average >= filters.rating)
+        .filter((item: any) => {
+          if (!filters.year) return true;
+          const date = item.release_date || item.first_air_date;
+          if (!date) return false;
+          const year = parseInt(date.split('-')[0]);
+          return yearStart && yearEnd
+            ? year >= parseInt(yearStart) && year <= parseInt(yearEnd)
+            : year === parseInt(yearStart);
+        })
+        .map((item: any) => ({ ...item, media_type: contentType }));
+      totalPages = data.total_pages || 1;
+    } else if (filters.people && filters.people.length > 0) {
       // Get credits for each person
       const creditsPromises = filters.people.map(person =>
         fetch(`https://api.themoviedb.org/3/person/${person.id}/combined_credits?api_key=${apiKey}`)
@@ -514,7 +552,7 @@ export const advancedSearch = async (
             : `tv/${id}`;
           
           const response = await fetch(
-            `https://api.themoviedb.org/3/${endpoint}?api_key=${apiKey}&append_to_response=credits`
+            `https://api.themoviedb.org/3/${endpoint}?api_key=${apiKey}&append_to_response=credits,keywords`
           );
           
           if (response.ok) {
@@ -563,6 +601,7 @@ export const advancedSearch = async (
             item.production_countries?.some((country: any) => country.iso_3166_1 === filters.country)) &&
           (!filters.language || item.original_language === filters.language) &&
           matchesRuntime(item.runtime || item.episode_run_time?.[0], filters.runtime) &&
+          matchesExtraFilters(item) &&
           item.poster_path
         )
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
@@ -615,6 +654,19 @@ export const advancedSearch = async (
         if (runtimeMax) {
           movieUrl += `&with_runtime.lte=${runtimeMax}`;
         }
+        if (filters.provider) {
+          movieUrl += `&with_watch_providers=${filters.provider}&watch_region=${filters.country || 'US'}&with_watch_monetization_types=flatrate`;
+        }
+        if (filters.company) {
+          movieUrl += `&with_companies=${filters.company}`;
+        }
+        if (filters.certification) {
+          movieUrl += `&certification_country=US&certification=${filters.certification}`;
+        }
+        const movieKeywords = [filters.keyword, filters.award].filter(Boolean).join(',');
+        if (movieKeywords) {
+          movieUrl += `&with_keywords=${movieKeywords}`;
+        }
         
         endpoints.push(fetch(movieUrl));
       }
@@ -645,6 +697,16 @@ export const advancedSearch = async (
         }
         if (filters.language) {
           tvUrl += `&with_original_language=${filters.language}`;
+        }
+        if (filters.provider) {
+          tvUrl += `&with_watch_providers=${filters.provider}&watch_region=${filters.country || 'US'}&with_watch_monetization_types=flatrate`;
+        }
+        if (filters.company) {
+          tvUrl += `&with_companies=${filters.company}`;
+        }
+        const tvKeywords = [filters.keyword, filters.award].filter(Boolean).join(',');
+        if (tvKeywords) {
+          tvUrl += `&with_keywords=${tvKeywords}`;
         }
         
         endpoints.push(fetch(tvUrl));
@@ -679,11 +741,13 @@ export const advancedSearch = async (
     // Filter out items without posters
     results = results.filter(item => item.poster_path);
 
-    // Sort by rating if specified, otherwise by popularity
-    if (filters.rating) {
-      results.sort((a: any, b: any) => (b.vote_average || 0) - (a.vote_average || 0));
-    } else {
-      results.sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0));
+    const usedSimilar = Boolean(filters.similarToId && (!filters.people || filters.people.length === 0));
+    if (!usedSimilar) {
+      if (filters.rating) {
+        results.sort((a: any, b: any) => (b.vote_average || 0) - (a.vote_average || 0));
+      } else {
+        results.sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0));
+      }
     }
 
     return {

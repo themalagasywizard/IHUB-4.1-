@@ -10,6 +10,7 @@ import Settings from '../components/Settings';
 import MediaNavigation from '../components/MediaNavigation';
 import { Button } from '@/components/ui/button';
 import type { MediaKind } from '@/utils/streamSources';
+import { markEpisodeWatched } from '@/utils/watchProgress';
 
 interface PlayingMedia {
   id: string;
@@ -331,12 +332,17 @@ const Home = () => {
       selectedMedia?.title ||
       selectedMedia?.name;
 
+    const nextSeason = type === 'tv' ? season ?? 1 : undefined;
+    const nextEpisode = type === 'tv' ? episode ?? 1 : undefined;
+    if (type === 'tv' && nextSeason && nextEpisode) {
+      markEpisodeWatched(String(id), nextSeason, nextEpisode);
+    }
     setPlayingMedia({
       id: String(id),
       type: type === 'tv' ? 'tv' : 'movie',
       title: mediaTitle,
-      season: type === 'tv' ? season ?? 1 : undefined,
-      episode: type === 'tv' ? episode ?? 1 : undefined,
+      season: nextSeason,
+      episode: nextEpisode,
     });
     setSelectedMedia(null);
     setSelectedMediaDetails(null);

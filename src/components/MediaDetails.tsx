@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, Play } from 'lucide-react';
+import { ArrowLeft, Check, Play, Star } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
+import {
+  getContinueEpisode,
+  getSeasonWatchedCount,
+  getShowProgress,
+  isEpisodeWatched,
+  toggleEpisodeWatched,
+} from '@/utils/watchProgress';
 
 interface MediaDetailsProps {
   id: string;
@@ -58,7 +65,10 @@ const MediaDetails = ({
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [metadata, setMetadata] = useState<DetailedMetadata | null>(null);
   const [isLoadingCredits, setIsLoadingCredits] = useState(false);
+  const [progressVersion, setProgressVersion] = useState(0);
   const apiKey = '650ff50a48a7379fd245c173ad422ff8';
+  const continueFrom = mediaType === 'tv' ? getContinueEpisode(id) : null;
+  const showProgress = mediaType === 'tv' ? getShowProgress(id) : null;
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -114,7 +124,11 @@ const MediaDetails = ({
           
           // If there are seasons after filtering, select the first one
           if (filteredSeasons.length > 0) {
-            handleSeasonSelect(filteredSeasons[0].season_number);
+            const lastSeason = getShowProgress(id).lastSeason;
+            const initialSeason = lastSeason && filteredSeasons.some((season: any) => season.season_number === lastSeason)
+              ? lastSeason
+              : filteredSeasons[0].season_number;
+            handleSeasonSelect(initialSeason);
           }
         }
       } catch (error) {
@@ -249,13 +263,36 @@ const MediaDetails = ({
                     Play Movie
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={() => onSelectEpisode?.(1, 1)}
-                    className="bg-[#ea384c] hover:bg-[#ff4d63] mb-6"
-                  >
-                    <Play className="w-5 h-5 mr-2" />
-                    Play First Episode
-                  </Button>
+                  <div className="mb-6">
+                    <div className="flex flex-wrap gap-3">
+                      <Button 
+                        onClick={() => onSelectEpisode?.(
+                          continueFrom?.season || 1,
+                          continueFrom?.episode || 1
+                        )}
+                        className="bg-[#ea384c] hover:bg-[#ff4d63]"
+                      >
+                        <Play className="w-5 h-5 mr-2" />
+                        {continueFrom
+                          ? `Continue S${continueFrom.season} E${continueFrom.episode}`
+                          : 'Play First Episode'}
+                      </Button>
+                      {continueFrom && (
+                        <Button
+                          onClick={() => onSelectEpisode?.(continueFrom.resumeSeason, continueFrom.resumeEpisode)}
+                          variant="outline"
+                          className="border-[#2a2a2a] bg-transparent text-white hover:bg-[#2a2a2a]"
+                        >
+                          Replay S{continueFrom.resumeSeason} E{continueFrom.resumeEpisode}
+                        </Button>
+                      )}
+                    </div>
+                    {showProgress && Object.keys(showProgress.episodes).length > 0 && (
+                      <p className="mt-3 text-sm text-white/50">
+                        {Object.keys(showProgress.episodes).length} episode{Object.keys(showProgress.episodes).length === 1 ? '' : 's'} watched
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {metadata?.crew && metadata.crew.length > 0 && (
@@ -318,7 +355,7 @@ const MediaDetails = ({
                 )}
 
                 {mediaType === 'tv' && seasons.length > 0 && (
-                  <div>
+                  <div key={progressVersion}>
                     <h3 className="text-xl font-semibold mb-4">Seasons</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {seasons.map((season) => (
@@ -334,6 +371,11 @@ const MediaDetails = ({
                           <div className="text-center">
                             <div className="font-medium">Season {season.season_number}</div>
                             <div className="text-sm text-gray-400">{season.episode_count} Episodes</div>
+                            {getSeasonWatchedCount(id, season.season_number) > 0 && (
+                              <div className="text-xs text-[#ea384c] mt-1">
+                                {getSeasonWatchedCount(id, season.season_number)} watched
+                              </div>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -343,18 +385,49 @@ const MediaDetails = ({
                       <div className="mt-6">
                         <h4 className="text-lg font-semibold mb-4">Episodes</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                          {episodes.map((episode) => (
-                            <button
-                              key={episode.episode_number}
-                              onClick={() => onSelectEpisode?.(selectedSeason, episode.episode_number)}
-                              className="p-4 rounded-lg border border-[#2a2a2a] hover:border-[#ea384c]/50 transition-all"
-                            >
-                              <div className="text-center">
-                                <h5 className="font-medium">Episode {episode.episode_number}</h5>
-                                <p className="text-sm text-gray-400 line-clamp-1">{episode.name}</p>
+                          {episodes.map((episode) => {
+                            const watched = isEpisodeWatched(id, selectedSeason, episode.episode_number);
+                            const isLast =
+                              showProgress?.lastSeason === selectedSeason &&
+                              showProgress?.lastEpisode === episode.episode_number;
+                            return (
+                              <div
+                                key={episode.episode_number}
+                                className={`relative rounded-lg border p-4 transition-all ${
+                                  watched
+                                    ? 'border-[#ea384c]/70 bg-[#ea384c]/10'
+                                    : 'border-[#2a2a2a] hover:border-[#ea384c]/50'
+                                }`}
+                              >
+                                <button
+                                  onClick={() => onSelectEpisode?.(selectedSeason, episode.episode_number)}
+                                  className="w-full text-center"
+                                >
+                                  <h5 className="font-medium">Episode {episode.episode_number}</h5>
+                                  <p className="text-sm text-gray-400 line-clamp-1">{episode.name}</p>
+                                  {isLast && (
+                                    <p className="text-[11px] text-[#ea384c] mt-1">Last watched</p>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  title={watched ? 'Mark as unwatched' : 'Mark as watched'}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    toggleEpisodeWatched(id, selectedSeason, episode.episode_number);
+                                    setProgressVersion((value) => value + 1);
+                                  }}
+                                  className={`absolute top-2 right-2 rounded-full p-1 ${
+                                    watched
+                                      ? 'bg-[#ea384c] text-white'
+                                      : 'bg-[#2a2a2a] text-white/50 hover:text-white'
+                                  }`}
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
                               </div>
-                            </button>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
