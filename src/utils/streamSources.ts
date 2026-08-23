@@ -1,7 +1,9 @@
 const TMDB_API_KEY = '650ff50a48a7379fd245c173ad422ff8';
 const STREMSRC_ADDON_URL = 'https://stremsrc.theditor.xyz';
 const PREFERRED_SERVER_KEY = 'ihub-preferred-server';
-export const DEFAULT_SERVER_ID = 'vidsrc-me';
+export const DEFAULT_SERVER_ID = 'direct-unblock';
+
+const siteOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '');
 
 export type MediaKind = 'movie' | 'tv';
 export type ServerKind = 'iframe' | 'direct';
@@ -72,24 +74,25 @@ export const getEmbedServers = (request: PlaybackRequest): StreamServer[] => {
   const episode = episodeOf(request);
   const isMovie = request.mediaType === 'movie';
 
+  const origin = siteOrigin();
   const servers: StreamServer[] = [
+    {
+      id: 'direct-unblock',
+      name: 'Direct Play',
+      group: 'Direct',
+      kind: 'iframe',
+      url: isMovie
+        ? `${origin}/watch-proxy/vidsrcme.ru/embed/movie?tmdb=${tmdbId}`
+        : `${origin}/watch-proxy/vidsrcme.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+    },
     {
       id: 'vidsrc-me',
       name: 'VidSrc Alt',
       group: 'Embed',
       kind: 'iframe',
       url: isMovie
-        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
-        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-    },
-    {
-      id: 'vidsrc-xyz',
-      name: 'VidSrc XYZ',
-      group: 'Embed',
-      kind: 'iframe',
-      url: isMovie
-        ? `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`
-        : `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+        ? `https://vidsrcme.ru/embed/movie?tmdb=${tmdbId}`
+        : `https://vidsrcme.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
     },
     {
       id: 'stremsrc-vidsrc',
@@ -196,10 +199,9 @@ export const resolveServers = async (request: PlaybackRequest): Promise<StreamSe
 };
 
 export const pickDefaultServer = (servers: StreamServer[]) => {
-  const preferred = getPreferredServerId();
   return (
-    servers.find((server) => server.id === preferred) ||
     servers.find((server) => server.id === DEFAULT_SERVER_ID) ||
+    servers.find((server) => server.id === getPreferredServerId()) ||
     servers[0] ||
     null
   );
