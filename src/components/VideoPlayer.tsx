@@ -167,7 +167,7 @@ const VideoPlayer = ({
             <div>
               <p className="mb-2 text-white">This server could not load the video.</p>
               <p className="text-sm text-white/60 mb-4">
-                Try Direct Play first. That route goes through this site so your PC does not need a VPN.
+                VidSrc Alt is the working server. Use Direct Play only if Alt is blocked.
               </p>
               <button
                 onClick={handleOpenExternally}
@@ -217,8 +217,8 @@ const VideoPlayer = ({
         </div>
 
         <p className="mb-3 text-xs leading-relaxed text-white/45">
-          Direct Play is the default on this site. It loads the video through Netlify so blocked
-          hosts never have to be reached from your PC. Use VidSrc Alt only if you are on a VPN.
+          VidSrc Alt is the default. Direct Play is a backup that routes through this site if a
+          host is blocked on your network.
         </p>
 
         <div className="space-y-3">

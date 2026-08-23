@@ -35,12 +35,35 @@ const interceptorScript = `
 <script>
 (function () {
   var PREFIX = '/watch-proxy/';
+  function proxyHost() {
+    var parts = location.pathname.split('/');
+    if (parts[1] === 'watch-proxy' && parts[2]) return parts[2];
+    var base = document.querySelector('base');
+    if (base && base.href) {
+      try {
+        var parsedBase = new URL(base.href, location.href);
+        var baseParts = parsedBase.pathname.split('/');
+        if (baseParts[1] === 'watch-proxy' && baseParts[2]) return baseParts[2];
+      } catch (err) {}
+    }
+    return '';
+  }
   function rewrite(url) {
     if (!url || typeof url !== 'string') return url;
     if (/^(blob:|data:|javascript:|about:|#)/i.test(url)) return url;
+    if (url.indexOf(PREFIX) === 0) return url;
+    var host = proxyHost();
+    if (url.charAt(0) === '/' && url.charAt(1) !== '/') {
+      return host ? PREFIX + host + url : url;
+    }
     try {
       var parsed = new URL(url, location.href);
-      if (parsed.pathname.indexOf(PREFIX) === 0) return url;
+      if (parsed.pathname.indexOf(PREFIX) === 0) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+      if (parsed.origin === location.origin) {
+        return host ? PREFIX + host + parsed.pathname + parsed.search + parsed.hash : url;
+      }
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return url;
       return PREFIX + parsed.host + parsed.pathname + parsed.search + parsed.hash;
     } catch (err) {
@@ -101,7 +124,8 @@ const toProxyPath = (absoluteUrl: string) => {
 };
 
 const rewriteHtml = (html: string, finalUrl: URL) => {
-  const base = `/watch-proxy/${finalUrl.host}/`;
+  const proxyRoot = `/watch-proxy/${finalUrl.host}`;
+  const base = `${proxyRoot}/`;
   let next = html;
 
   if (/<head/i.test(next)) {
@@ -113,6 +137,11 @@ const rewriteHtml = (html: string, finalUrl: URL) => {
   next = next.replace(
     /(src|href|data-api|action)=["'](https?:\/\/[^"']+)["']/gi,
     (_match, attr: string, url: string) => `${attr}="${toProxyPath(url)}"`
+  );
+
+  next = next.replace(
+    /(src|href|data-api|action)=["'](\/(?!\/|watch-proxy\/)[^"']*)["']/gi,
+    (_match, attr: string, url: string) => `${attr}="${proxyRoot}${url}"`
   );
 
   return next;

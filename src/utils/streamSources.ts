@@ -1,7 +1,7 @@
 const TMDB_API_KEY = '650ff50a48a7379fd245c173ad422ff8';
 const STREMSRC_ADDON_URL = 'https://stremsrc.theditor.xyz';
 const PREFERRED_SERVER_KEY = 'ihub-preferred-server';
-export const DEFAULT_SERVER_ID = 'direct-unblock';
+export const DEFAULT_SERVER_ID = 'vidsrc-me';
 
 const siteOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -11,7 +11,7 @@ export type ServerKind = 'iframe' | 'direct';
 export interface StreamServer {
   id: string;
   name: string;
-  group: 'StremSRC' | 'Embed';
+  group: 'StremSRC' | 'Embed' | 'Direct';
   kind: ServerKind;
   url: string;
 }
