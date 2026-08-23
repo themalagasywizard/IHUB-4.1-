@@ -12,6 +12,14 @@ import MediaNavigation from '../components/MediaNavigation';
 import { Button } from '@/components/ui/button';
 import { filterCategory, fetchTVSeries, fetchTVSeriesByCategory, handleSearch, fetchMovies, fetchPersonMovies, advancedSearch } from '../utils/mediaUtils';
 import { determineMediaType } from '../utils/mediaTypeUtils';
+import {
+  SEARCH_COUNTRIES,
+  SEARCH_DECADES,
+  SEARCH_LANGUAGES,
+  SEARCH_RUNTIME_OPTIONS,
+  SEARCH_SORT_OPTIONS,
+  SEARCH_VOTE_OPTIONS,
+} from '../utils/searchFilters';
 import type { MediaKind } from '@/utils/streamSources';
 
 interface PlayingMedia {
@@ -87,6 +95,11 @@ const Index = () => {
   const [searchCast, setSearchCast] = useState<string[]>([]);
   const [searchDirector, setSearchDirector] = useState<string[]>([]);
   const [searchRating, setSearchRating] = useState<number>(0);
+  const [searchCountry, setSearchCountry] = useState('');
+  const [searchLanguage, setSearchLanguage] = useState('');
+  const [searchSort, setSearchSort] = useState('popularity.desc');
+  const [searchRuntime, setSearchRuntime] = useState('');
+  const [searchMinVotes, setSearchMinVotes] = useState('');
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [contentType, setContentType] = useState<'movie' | 'tv'>('movie');
@@ -238,10 +251,15 @@ const Index = () => {
               year: searchYear,
               genre: searchGenre,
               people: selectedPeople,
-              rating: searchRating
+              rating: searchRating,
+              country: searchCountry,
+              language: searchLanguage,
+              sortBy: searchSort,
+              runtime: searchRuntime,
+              minVotes: searchMinVotes,
             },
             contentType,
-            nextPage // Pass the page number to advancedSearch
+            nextPage
           );
           newResults = searchResults;
           break;
@@ -259,13 +277,35 @@ const Index = () => {
     }
   };
 
+  const resetAdvancedFilters = () => {
+    setSearchQuery('');
+    setSearchYear('');
+    setSearchGenre('');
+    setSearchCast([]);
+    setSearchDirector([]);
+    setSearchRating(0);
+    setSearchCountry('');
+    setSearchLanguage('');
+    setSearchSort('popularity.desc');
+    setSearchRuntime('');
+    setSearchMinVotes('');
+    setShowAdvancedSearch(false);
+    setSearchResults([]);
+    setSelectedPeople([]);
+  };
+
   const performSearch = async () => {
     const results = await advancedSearch(
       {
         year: searchYear,
         genre: searchGenre,
         people: selectedPeople,
-        rating: searchRating
+        rating: searchRating,
+        country: searchCountry,
+        language: searchLanguage,
+        sortBy: searchSort,
+        runtime: searchRuntime,
+        minVotes: searchMinVotes,
       },
       contentType
     );
@@ -489,14 +529,7 @@ const Index = () => {
                   <button
                     onClick={() => {
                       setShowSearch(false);
-                      setSearchQuery('');
-                      setSearchYear('');
-                      setSearchGenre('');
-                      setSearchCast([]);
-                      setSearchDirector([]);
-                      setSearchRating(0);
-                      setShowAdvancedSearch(false);
-                      setSearchResults([]);
+                      resetAdvancedFilters();
                     }}
                     className="p-2 rounded-full hover:bg-[rgba(234,56,76,0.1)] transition-colors text-[#ea384c]"
                   >
@@ -509,14 +542,7 @@ const Index = () => {
                     onKeyDown={(e) => {
                       if (e.key === 'Escape') {
                         setShowSearch(false);
-                        setSearchQuery('');
-                        setSearchYear('');
-                        setSearchGenre('');
-                        setSearchCast([]);
-                        setSearchDirector([]);
-                        setSearchRating(0);
-                        setShowAdvancedSearch(false);
-                        setSearchResults([]);
+                        resetAdvancedFilters();
                       }
                     }}
                     placeholder="Search movies and TV shows..."
@@ -583,7 +609,7 @@ const Index = () => {
                 
                 {showAdvancedSearch && (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#2a2a2a] p-6 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-[#2a2a2a] p-6 rounded-lg">
                       <div className="space-y-2">
                         <label className="text-sm text-white/70">Content Type</label>
                         <ToggleGroup
@@ -612,6 +638,34 @@ const Index = () => {
                       </div>
 
                       <div className="space-y-2">
+                        <label className="text-sm text-white/70">Country</label>
+                        <select
+                          value={searchCountry}
+                          onChange={(e) => setSearchCountry(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any country</option>
+                          {SEARCH_COUNTRIES.map((country) => (
+                            <option key={country.code} value={country.code}>{country.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Original Language</label>
+                        <select
+                          value={searchLanguage}
+                          onChange={(e) => setSearchLanguage(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          <option value="">Any language</option>
+                          {SEARCH_LANGUAGES.map((language) => (
+                            <option key={language.code} value={language.code}>{language.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
                         <label className="text-sm text-white/70">Year</label>
                         <input
                           type="text"
@@ -622,6 +676,30 @@ const Index = () => {
                           placeholder="e.g., 2023 or 2000-2010"
                           className="w-full p-2 bg-[#1a1a1a] rounded-md text-white placeholder:text-white/30 border-none outline-none"
                         />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm text-white/70">Decade</label>
+                        <div className="flex flex-wrap gap-2">
+                          {SEARCH_DECADES.map((decade) => {
+                            const range = `${decade}-${Number(decade) + 9}`;
+                            const isActive = searchYear === range;
+                            return (
+                              <button
+                                key={decade}
+                                type="button"
+                                onClick={() => setSearchYear(isActive ? '' : range)}
+                                className={`px-3 py-1.5 rounded-md text-sm border transition-colors active:scale-[0.98] ${
+                                  isActive
+                                    ? 'border-[#ea384c] bg-[#ea384c] text-white'
+                                    : 'border-[#3a3a3a] bg-[#1a1a1a] text-white/80 hover:border-[#ea384c]/50'
+                                }`}
+                              >
+                                {decade}s
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                   
                       <div className="space-y-2">
@@ -638,6 +716,47 @@ const Index = () => {
                             contentType === 'movie' ? categories :
                             {...categories, ...seriesCategories}).map(([id, name]) => (
                             <option key={id} value={id}>{name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Sort by</label>
+                        <select
+                          value={searchSort}
+                          onChange={(e) => setSearchSort(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          {SEARCH_SORT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {contentType === 'movie' && (
+                        <div className="space-y-2">
+                          <label className="text-sm text-white/70">Runtime</label>
+                          <select
+                            value={searchRuntime}
+                            onChange={(e) => setSearchRuntime(e.target.value)}
+                            className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                          >
+                            {SEARCH_RUNTIME_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm text-white/70">Minimum votes</label>
+                        <select
+                          value={searchMinVotes}
+                          onChange={(e) => setSearchMinVotes(e.target.value)}
+                          className="w-full p-2 bg-[#1a1a1a] rounded-md text-white border-none outline-none"
+                        >
+                          {SEARCH_VOTE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
                           ))}
                         </select>
                       </div>

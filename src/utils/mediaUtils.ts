@@ -1,3 +1,10 @@
+import {
+  matchesRuntime,
+  runtimeBounds,
+  sortForContentType,
+  type AdvancedSearchFilters,
+} from './searchFilters';
+
 const apiKey = '650ff50a48a7379fd245c173ad422ff8';
 
 // Helper functions
@@ -435,12 +442,7 @@ const calculateDirectorScore = (item: any) => {
 };
 
 export const advancedSearch = async (
-  filters: {
-    year?: string;
-    genre?: string;
-    people?: any[];
-    rating?: number;
-  },
+  filters: AdvancedSearchFilters,
   contentType: 'movie' | 'tv' = 'movie',
   page: number = 1
 ) => {
@@ -556,6 +558,11 @@ export const advancedSearch = async (
           })()) &&
           (!filters.genre || item.genres?.some(g => g.id.toString() === filters.genre)) &&
           (!filters.rating || item.vote_average >= filters.rating) &&
+          (!filters.country ||
+            item.origin_country?.includes(filters.country) ||
+            item.production_countries?.some((country: any) => country.iso_3166_1 === filters.country)) &&
+          (!filters.language || item.original_language === filters.language) &&
+          matchesRuntime(item.runtime || item.episode_run_time?.[0], filters.runtime) &&
           item.poster_path
         )
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
@@ -570,10 +577,13 @@ export const advancedSearch = async (
     } else {
       // If no people selected, use the regular discover API
       const endpoints = [];
-      const minVoteCount = 100;
+      const selectedVotes = filters.minVotes ? parseInt(filters.minVotes, 10) : 0;
+      const minVoteCount = selectedVotes || (filters.country || filters.language ? 20 : 50);
+      const sortBy = sortForContentType(filters.sortBy, contentType);
+      const { min: runtimeMin, max: runtimeMax } = runtimeBounds(filters.runtime);
 
       if (contentType === 'movie') {
-        let movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&include_adult=false&sort_by=popularity.desc&vote_count.gte=${minVoteCount}&with_original_language=en|es|fr|de|it&page=${page}`;
+        let movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&include_adult=false&sort_by=${sortBy}&vote_count.gte=${minVoteCount}&page=${page}`;
         
         // Exclude documentaries unless specifically selected
         if (filters.genre !== '99') {
@@ -593,12 +603,24 @@ export const advancedSearch = async (
         if (filters.rating) {
           movieUrl += `&vote_average.gte=${filters.rating}`;
         }
+        if (filters.country) {
+          movieUrl += `&with_origin_country=${filters.country}`;
+        }
+        if (filters.language) {
+          movieUrl += `&with_original_language=${filters.language}`;
+        }
+        if (runtimeMin) {
+          movieUrl += `&with_runtime.gte=${runtimeMin}`;
+        }
+        if (runtimeMax) {
+          movieUrl += `&with_runtime.lte=${runtimeMax}`;
+        }
         
         endpoints.push(fetch(movieUrl));
       }
       
       if (contentType === 'tv') {
-        let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&include_adult=false&sort_by=popularity.desc&vote_count.gte=${minVoteCount}&with_original_language=en|es|fr|de|it&page=${page}`;
+        let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&include_adult=false&sort_by=${sortBy}&vote_count.gte=${minVoteCount}&page=${page}`;
         
         // Exclude documentaries unless specifically selected
         if (filters.genre !== '99') {
@@ -617,6 +639,12 @@ export const advancedSearch = async (
         }
         if (filters.rating) {
           tvUrl += `&vote_average.gte=${filters.rating}`;
+        }
+        if (filters.country) {
+          tvUrl += `&with_origin_country=${filters.country}`;
+        }
+        if (filters.language) {
+          tvUrl += `&with_original_language=${filters.language}`;
         }
         
         endpoints.push(fetch(tvUrl));
