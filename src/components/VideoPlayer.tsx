@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, Loader2, Radio, X } from 'lucide-react';
+import { Loader2, Radio, X } from 'lucide-react';
 import {
   DEFAULT_SERVER_ID,
   fetchImdbId,
@@ -136,23 +136,13 @@ const VideoPlayer = ({
           <p className="text-[11px] uppercase tracking-[0.22em] text-[#ea384c]">Now playing</p>
           <h2 className="text-lg md:text-xl font-semibold truncate">{heading}</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenExternally}
-            className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
-            aria-label="Open server in a new tab"
-            title="Open server in a new tab"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
-            aria-label="Close player"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
+          aria-label="Close player"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       <div className="relative w-full aspect-video max-h-[600px] overflow-hidden rounded-lg bg-black shadow-lg">
