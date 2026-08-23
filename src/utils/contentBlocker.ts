@@ -63,6 +63,7 @@ const blockRedirects = () => {
         'vidsrc.to',
         'vidsrc.xyz',
         'vidsrc.cc',
+        'vidlink.pro',
         'vidsrc-embed.ru',
         'vsembed.ru',
         'stremsrc.theditor.xyz',

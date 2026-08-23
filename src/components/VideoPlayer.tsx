@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Radio, X } from 'lucide-react';
+import { ExternalLink, Loader2, Radio, X } from 'lucide-react';
 import {
+  DEFAULT_SERVER_ID,
   fetchImdbId,
   getEmbedServers,
   pickDefaultServer,
@@ -30,7 +31,9 @@ const VideoPlayer = ({
   const [servers, setServers] = useState<StreamServer[]>(() =>
     getEmbedServers({ tmdbId, mediaType, season, episode })
   );
-  const [activeServerId, setActiveServerId] = useState<string>(() => servers[0]?.id || '');
+  const [activeServerId, setActiveServerId] = useState<string>(
+    () => pickDefaultServer(servers)?.id || DEFAULT_SERVER_ID
+  );
   const [isResolving, setIsResolving] = useState(true);
   const [iframeReady, setIframeReady] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -108,6 +111,11 @@ const VideoPlayer = ({
     setLoadFailed(false);
   };
 
+  const handleOpenExternally = () => {
+    if (!activeServer?.url) return;
+    window.open(activeServer.url, '_blank', 'noopener,noreferrer');
+  };
+
   const groupedServers = useMemo(() => {
     return servers.reduce<Record<string, StreamServer[]>>((groups, server) => {
       groups[server.group] = groups[server.group] || [];
@@ -128,13 +136,23 @@ const VideoPlayer = ({
           <p className="text-[11px] uppercase tracking-[0.22em] text-[#ea384c]">Now playing</p>
           <h2 className="text-lg md:text-xl font-semibold truncate">{heading}</h2>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
-          aria-label="Close player"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleOpenExternally}
+            className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
+            aria-label="Open server in a new tab"
+            title="Open server in a new tab"
+          >
+            <ExternalLink className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full border border-[#2a2a2a] hover:border-[#ea384c]/60 hover:bg-[rgba(234,56,76,0.08)] transition-colors"
+            aria-label="Close player"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="relative w-full aspect-video max-h-[600px] overflow-hidden rounded-lg bg-black shadow-lg">
@@ -148,7 +166,15 @@ const VideoPlayer = ({
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black px-6 text-center">
             <div>
               <p className="mb-2 text-white">This server could not load the video.</p>
-              <p className="text-sm text-white/60">Choose another server below.</p>
+              <p className="text-sm text-white/60 mb-4">
+                Try VidSrc Alt, open it in a new tab, or turn on the same VPN you use on your phone.
+              </p>
+              <button
+                onClick={handleOpenExternally}
+                className="px-4 py-2 rounded-md bg-[#ea384c] hover:bg-[#ff4d63] text-sm active:scale-[0.98]"
+              >
+                Open this server in a new tab
+              </button>
             </div>
           </div>
         )}
@@ -171,7 +197,7 @@ const VideoPlayer = ({
               className="absolute inset-0 h-full w-full bg-black"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowFullScreen
-              referrerPolicy="origin"
+              referrerPolicy="no-referrer"
               onLoad={() => setIframeReady(true)}
               onError={() => setLoadFailed(true)}
             />
@@ -189,6 +215,11 @@ const VideoPlayer = ({
             <span className="text-xs text-white/40">Checking StremSRC links…</span>
           )}
         </div>
+
+        <p className="mb-3 text-xs leading-relaxed text-white/45">
+          VidSrc Alt is the default. If the player stays blank on this computer, your network is
+          blocking the host. Use the same VPN as on your phone, or open the server in a new tab.
+        </p>
 
         <div className="space-y-3">
           {Object.entries(groupedServers).map(([group, groupServers]) => (

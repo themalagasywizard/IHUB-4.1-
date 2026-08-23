@@ -1,6 +1,7 @@
 const TMDB_API_KEY = '650ff50a48a7379fd245c173ad422ff8';
 const STREMSRC_ADDON_URL = 'https://stremsrc.theditor.xyz';
 const PREFERRED_SERVER_KEY = 'ihub-preferred-server';
+export const DEFAULT_SERVER_ID = 'vidsrc-me';
 
 export type MediaKind = 'movie' | 'tv';
 export type ServerKind = 'iframe' | 'direct';
@@ -73,6 +74,24 @@ export const getEmbedServers = (request: PlaybackRequest): StreamServer[] => {
 
   const servers: StreamServer[] = [
     {
+      id: 'vidsrc-me',
+      name: 'VidSrc Alt',
+      group: 'Embed',
+      kind: 'iframe',
+      url: isMovie
+        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
+        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+    },
+    {
+      id: 'vidsrc-xyz',
+      name: 'VidSrc XYZ',
+      group: 'Embed',
+      kind: 'iframe',
+      url: isMovie
+        ? `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`
+        : `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+    },
+    {
       id: 'stremsrc-vidsrc',
       name: 'StremSRC',
       group: 'StremSRC',
@@ -91,24 +110,6 @@ export const getEmbedServers = (request: PlaybackRequest): StreamServer[] => {
         : `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
     },
     {
-      id: 'vidsrc-me',
-      name: 'VidSrc Alt',
-      group: 'Embed',
-      kind: 'iframe',
-      url: isMovie
-        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
-        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-    },
-    {
-      id: 'vidsrc-xyz',
-      name: 'VidSrc XYZ',
-      group: 'Embed',
-      kind: 'iframe',
-      url: isMovie
-        ? `https://vidsrc.xyz/embed/movie/${tmdbId}`
-        : `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`,
-    },
-    {
       id: 'vidsrc-cc',
       name: 'VidSrc CC',
       group: 'Embed',
@@ -116,6 +117,15 @@ export const getEmbedServers = (request: PlaybackRequest): StreamServer[] => {
       url: isMovie
         ? `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
         : `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`,
+    },
+    {
+      id: 'vidlink',
+      name: 'VidLink',
+      group: 'Embed',
+      kind: 'iframe',
+      url: isMovie
+        ? `https://vidlink.pro/movie/${tmdbId}`
+        : `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`,
     },
   ];
 
@@ -187,5 +197,10 @@ export const resolveServers = async (request: PlaybackRequest): Promise<StreamSe
 
 export const pickDefaultServer = (servers: StreamServer[]) => {
   const preferred = getPreferredServerId();
-  return servers.find((server) => server.id === preferred) || servers[0] || null;
+  return (
+    servers.find((server) => server.id === preferred) ||
+    servers.find((server) => server.id === DEFAULT_SERVER_ID) ||
+    servers[0] ||
+    null
+  );
 };
