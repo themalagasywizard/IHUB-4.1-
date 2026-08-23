@@ -2,6 +2,7 @@ import {
   matchesRuntime,
   runtimeBounds,
   sortForContentType,
+  watchRegionForFilters,
   type AdvancedSearchFilters,
 } from './searchFilters';
 
@@ -655,7 +656,7 @@ export const advancedSearch = async (
           movieUrl += `&with_runtime.lte=${runtimeMax}`;
         }
         if (filters.provider) {
-          movieUrl += `&with_watch_providers=${filters.provider}&watch_region=${filters.country || 'US'}&with_watch_monetization_types=flatrate`;
+          movieUrl += `&with_watch_providers=${filters.provider}&watch_region=${watchRegionForFilters(filters.country, filters.provider)}&with_watch_monetization_types=flatrate`;
         }
         if (filters.company) {
           movieUrl += `&with_companies=${filters.company}`;
@@ -699,7 +700,7 @@ export const advancedSearch = async (
           tvUrl += `&with_original_language=${filters.language}`;
         }
         if (filters.provider) {
-          tvUrl += `&with_watch_providers=${filters.provider}&watch_region=${filters.country || 'US'}&with_watch_monetization_types=flatrate`;
+          tvUrl += `&with_watch_providers=${filters.provider}&watch_region=${watchRegionForFilters(filters.country, filters.provider)}&with_watch_monetization_types=flatrate`;
         }
         if (filters.company) {
           tvUrl += `&with_companies=${filters.company}`;

@@ -100,7 +100,21 @@ export const SEARCH_PROVIDERS = [
   { id: '386', name: 'Peacock' },
   { id: '283', name: 'Crunchyroll' },
   { id: '11', name: 'MUBI' },
+  { id: '63', name: 'Filmin' },
 ] as const;
+
+const PROVIDER_REGIONS: Record<string, string[]> = {
+  '63': ['ES', 'PT'],
+};
+
+export const watchRegionForFilters = (country?: string, provider?: string) => {
+  const regions = provider ? PROVIDER_REGIONS[provider] : undefined;
+  if (regions?.length) {
+    if (country && regions.includes(country)) return country;
+    return regions[0];
+  }
+  return country || 'US';
+};
 
 export const SEARCH_STUDIOS = [
   { id: '41077', name: 'A24' },
