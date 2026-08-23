@@ -104,24 +104,6 @@ export const getEmbedServers = (request: PlaybackRequest): StreamServer[] => {
         : `https://vsembed.ru/embed/tv/${id}/${season}-${episode}`,
     },
     {
-      id: 'vidsrc-to',
-      name: 'VidSrc',
-      group: 'Embed',
-      kind: 'iframe',
-      url: isMovie
-        ? `https://vidsrc.to/embed/movie/${tmdbId}`
-        : `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
-    },
-    {
-      id: 'vidsrc-cc',
-      name: 'VidSrc CC',
-      group: 'Embed',
-      kind: 'iframe',
-      url: isMovie
-        ? `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
-        : `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`,
-    },
-    {
       id: 'vidlink',
       name: 'VidLink',
       group: 'Embed',
