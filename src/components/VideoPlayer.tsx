@@ -4,6 +4,7 @@ import {
   DEFAULT_SERVER_ID,
   fetchImdbId,
   getEmbedServers,
+  iframeSandboxFor,
   pickDefaultServer,
   resolveServers,
   setPreferredServerId,
@@ -37,6 +38,7 @@ const VideoPlayer = ({
   const [isResolving, setIsResolving] = useState(true);
   const [iframeReady, setIframeReady] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [playerUnlocked, setPlayerUnlocked] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const activeServer = useMemo(
@@ -51,6 +53,7 @@ const VideoPlayer = ({
       setIsResolving(true);
       setIframeReady(false);
       setLoadFailed(false);
+      setPlayerUnlocked(false);
 
       const imdbId = await fetchImdbId(tmdbId, mediaType);
       if (cancelled) return;
@@ -84,6 +87,7 @@ const VideoPlayer = ({
   useEffect(() => {
     setIframeReady(false);
     setLoadFailed(false);
+    setPlayerUnlocked(false);
   }, [activeServer?.url]);
 
   useEffect(() => {
@@ -157,7 +161,7 @@ const VideoPlayer = ({
             <div>
               <p className="mb-2 text-white">This server could not load the video.</p>
               <p className="text-sm text-white/60 mb-4">
-                VidSrc Alt is the working server. Use Direct Play only if Alt is blocked.
+                Try Direct Play if an ad blocker is stopping this server.
               </p>
               <button
                 onClick={handleOpenExternally}
@@ -185,6 +189,7 @@ const VideoPlayer = ({
               key={activeServer.url}
               src={activeServer.url}
               className="absolute inset-0 h-full w-full bg-black"
+              sandbox={iframeSandboxFor(activeServer.url)}
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowFullScreen
               referrerPolicy="no-referrer"
@@ -192,6 +197,18 @@ const VideoPlayer = ({
               onError={() => setLoadFailed(true)}
             />
           )
+        )}
+
+        {activeServer?.kind !== 'direct' && iframeReady && !loadFailed && !playerUnlocked && (
+          <button
+            type="button"
+            onClick={() => setPlayerUnlocked(true)}
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 text-white active:scale-[0.99]"
+          >
+            <span className="rounded-md border border-white/15 bg-[#141414]/90 px-5 py-3 text-sm tracking-wide">
+              Click to start player
+            </span>
+          </button>
         )}
       </div>
 
@@ -207,8 +224,8 @@ const VideoPlayer = ({
         </div>
 
         <p className="mb-3 text-xs leading-relaxed text-white/45">
-          VidSrc Alt is the default. Direct Play is a backup that routes through this site if a
-          host is blocked on your network.
+          Player popups are blocked. VidSrc Alt is the default. If an ad blocker stops the video,
+          switch to Direct Play so the stream loads through this site.
         </p>
 
         <div className="space-y-3">

@@ -109,6 +109,58 @@ const interceptorScript = `
     }
     return setAttribute.call(this, name, value);
   };
+
+  function neutralizeBlank(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.tagName === 'A') {
+      var target = node.getAttribute('target');
+      if (target === '_blank' || target === '_new' || target === '_parent' || target === '_top') {
+        node.setAttribute('target', '_self');
+      }
+    }
+    var links = node.querySelectorAll ? node.querySelectorAll('a[target]') : [];
+    for (var i = 0; i < links.length; i++) {
+      var value = links[i].getAttribute('target');
+      if (value === '_blank' || value === '_new' || value === '_parent' || value === '_top') {
+        links[i].setAttribute('target', '_self');
+      }
+    }
+  }
+
+  function blockOpen() { return null; }
+  try {
+    Object.defineProperty(window, 'open', {
+      configurable: false,
+      writable: false,
+      value: blockOpen
+    });
+  } catch (err) {
+    window.open = blockOpen;
+  }
+
+  document.addEventListener('click', function (event) {
+    var raw = event.target;
+    var el = raw && raw.nodeType === 1 ? raw : (raw && raw.parentElement);
+    var link = el && el.closest ? el.closest('a') : null;
+    if (!link) return;
+    var target = link.getAttribute('target');
+    if (target === '_blank' || target === '_new' || target === '_parent' || target === '_top') {
+      event.preventDefault();
+      link.setAttribute('target', '_self');
+      var href = link.getAttribute('href');
+      if (href && href !== '#' && href.indexOf('javascript:') !== 0) {
+        location.href = rewrite(href);
+      }
+    }
+  }, true);
+
+  if (document.documentElement) neutralizeBlank(document.documentElement);
+  new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) neutralizeBlank(added[j]);
+    }
+  }).observe(document.documentElement || document, { childList: true, subtree: true });
 })();
 </script>
 `;
