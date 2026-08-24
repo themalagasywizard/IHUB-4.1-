@@ -3,14 +3,6 @@ const STREMSRC_ADDON_URL = 'https://stremsrc.theditor.xyz';
 const PREFERRED_SERVER_KEY = 'ihub-preferred-server';
 export const DEFAULT_SERVER_ID = 'vidsrc-me';
 
-export const isWatchProxyUrl = (url: string) => url.includes('/watch-proxy/');
-
-export const iframeSandboxFor = (url: string) => {
-  const tokens = 'allow-scripts allow-forms allow-presentation';
-  if (isWatchProxyUrl(url)) return tokens;
-  return `${tokens} allow-same-origin`;
-};
-
 const siteOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '');
 
 export type MediaKind = 'movie' | 'tv';

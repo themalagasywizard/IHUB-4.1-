@@ -4,7 +4,6 @@ import {
   DEFAULT_SERVER_ID,
   fetchImdbId,
   getEmbedServers,
-  iframeSandboxFor,
   pickDefaultServer,
   resolveServers,
   setPreferredServerId,
@@ -189,7 +188,6 @@ const VideoPlayer = ({
               key={activeServer.url}
               src={activeServer.url}
               className="absolute inset-0 h-full w-full bg-black"
-              sandbox={iframeSandboxFor(activeServer.url)}
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowFullScreen
               referrerPolicy="no-referrer"
@@ -224,7 +222,7 @@ const VideoPlayer = ({
         </div>
 
         <p className="mb-3 text-xs leading-relaxed text-white/45">
-          Player popups are blocked. VidSrc Alt is the default. If an ad blocker stops the video,
+          Click to start so the first ad-click never reaches the player. If popups still appear,
           switch to Direct Play so the stream loads through this site.
         </p>
 
