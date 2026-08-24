@@ -10,6 +10,7 @@ import {
   type MediaKind,
   type StreamServer,
 } from '@/utils/streamSources';
+import { installPlayerPopupGuard } from '@/utils/playerPopupGuard';
 
 interface VideoPlayerProps {
   tmdbId: string;
@@ -39,6 +40,13 @@ const VideoPlayer = ({
   const [loadFailed, setLoadFailed] = useState(false);
   const [playerUnlocked, setPlayerUnlocked] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const nativeOpenRef = useRef<typeof window.open | null>(null);
+
+  useEffect(() => {
+    const guard = installPlayerPopupGuard();
+    nativeOpenRef.current = guard.nativeOpen;
+    return () => guard.uninstall();
+  }, []);
 
   const activeServer = useMemo(
     () => servers.find((server) => server.id === activeServerId) || servers[0] || null,
@@ -116,7 +124,8 @@ const VideoPlayer = ({
 
   const handleOpenExternally = () => {
     if (!activeServer?.url) return;
-    window.open(activeServer.url, '_blank', 'noopener,noreferrer');
+    const open = nativeOpenRef.current || window.open.bind(window);
+    open(activeServer.url, '_blank', 'noopener,noreferrer');
   };
 
   const groupedServers = useMemo(() => {
@@ -222,8 +231,8 @@ const VideoPlayer = ({
         </div>
 
         <p className="mb-3 text-xs leading-relaxed text-white/45">
-          Click to start so the first ad-click never reaches the player. If popups still appear,
-          switch to Direct Play so the stream loads through this site.
+          New tabs from the player are closed immediately. Click to start first. Direct Play
+          blocks popups more reliably if any still flash on screen.
         </p>
 
         <div className="space-y-3">

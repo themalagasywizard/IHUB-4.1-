@@ -128,15 +128,22 @@ const interceptorScript = `
   }
 
   function blockOpen() { return null; }
+  function lockOpen() {
+    try {
+      window.open = blockOpen;
+    } catch (err) {}
+  }
   try {
     Object.defineProperty(window, 'open', {
-      configurable: false,
-      writable: false,
+      configurable: true,
+      writable: true,
       value: blockOpen
     });
   } catch (err) {
     window.open = blockOpen;
   }
+  lockOpen();
+  setInterval(lockOpen, 200);
 
   document.addEventListener('click', function (event) {
     var raw = event.target;
@@ -146,11 +153,8 @@ const interceptorScript = `
     var target = link.getAttribute('target');
     if (target === '_blank' || target === '_new' || target === '_parent' || target === '_top') {
       event.preventDefault();
+      event.stopPropagation();
       link.setAttribute('target', '_self');
-      var href = link.getAttribute('href');
-      if (href && href !== '#' && href.indexOf('javascript:') !== 0) {
-        location.href = rewrite(href);
-      }
     }
   }, true);
 
